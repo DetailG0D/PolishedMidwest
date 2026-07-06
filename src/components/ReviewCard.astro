@@ -1,0 +1,29 @@
+---
+/**
+ * Review card. Review content comes from src/data/reviews.ts — real Google
+ * reviews only, verbatim.
+ */
+interface Props {
+  quote: string;
+  name: string;
+  detail?: string; // e.g. "Ceramic Coating — Belleville"
+}
+const { quote, name, detail } = Astro.props;
+---
+
+<figure class="flex h-full flex-col rounded-lg border border-ink-600 bg-ink-800 p-6">
+  <div class="flex gap-0.5 text-brand" aria-label="5 out of 5 stars">
+    {
+      Array.from({ length: 5 }).map(() => (
+        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M10 1.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L10 14.9l-5.3 2.7 1-5.8L1.5 7.7l5.9-.9L10 1.5z" />
+        </svg>
+      ))
+    }
+  </div>
+  <blockquote class="mt-4 flex-1 text-sm leading-relaxed text-slate-300">“{quote}”</blockquote>
+  <figcaption class="mt-4 text-sm">
+    <span class="font-semibold text-white">{name}</span>
+    {detail && <span class="block text-xs text-slate-500">{detail}</span>}
+  </figcaption>
+</figure>

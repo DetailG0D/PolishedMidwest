@@ -1,0 +1,161 @@
+---
+/**
+ * Detailing services — HIGH-LEVEL ONLY by design. The full itemized menu
+ * (tiers, inclusions, vehicle sizes, add-ons) lives in Fieldd; this page shows
+ * categories + "starting at" pricing and routes people to Fieldd to book.
+ * Do not rebuild an itemized menu here.
+ *
+ * Replaces the old Wix /copy-of-services-1 URL (301 in public/_redirects).
+ * /dealership-fleet-belleville also 301s here — the Fleet card covers it.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CtaButton from '../components/CtaButton.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import Photo from '../components/Photo.astro';
+import { NAP, MAINTENANCE_BOOKING_URL } from '../consts';
+
+import trxWithVan from '../assets/photos/detailed-ram-trx-with-detailing-van.jpg';
+
+const categories = [
+  {
+    name: 'Interior Detailing',
+    price: 'Starting at $127',
+    blurb: 'Deep clean of seats, carpets, trim, and glass — kid messes, pet hair, and odors handled.',
+    cta: 'See Options & Book',
+  },
+  {
+    name: 'Exterior Detailing',
+    price: 'Starting at $127',
+    blurb: 'Proper hand wash, wheels and tires, decontamination, and protection for the paint.',
+    cta: 'See Options & Book',
+  },
+  {
+    name: 'Full Detail',
+    price: 'Starting at $207',
+    featured: true,
+    blurb: 'Interior + exterior combined — the complete reset, inside and out.',
+    cta: 'See Options & Book',
+  },
+  {
+    name: 'Ceramic Coating',
+    // Lowest ceramic package (Clay & Coat) — confirm this is the number to feature (see CONTENT.md)
+    price: 'Starting at $447',
+    blurb: 'Years of gloss and protection instead of months. Two packages, always preceded by a free paint inspection.',
+    cta: 'See Options & Book',
+    learnMore: '/ceramic-coating-belleville',
+  },
+  {
+    name: 'Maintenance Plans',
+    price: 'Starting at $97',
+    blurb: 'Recurring visits that keep a detailed or coated car looking freshly done year-round.',
+    cta: 'See Options & Book',
+    href: MAINTENANCE_BOOKING_URL,
+  },
+  {
+    name: 'Dealership / Fleet',
+    price: 'Custom pricing · 3+ vehicles',
+    blurb: 'Recurring or lot-ready detailing for dealerships and fleets around the Metro East.',
+    cta: 'Inquire & Book',
+  },
+];
+---
+
+<BaseLayout
+  title={`Car Detailing Services & Pricing | Belleville, IL | ${NAP.name}`}
+  description={`Interior, exterior, full-detail, ceramic coating, and maintenance plans in Belleville, IL and the Metro East — starting at $127. Mobile detailing, we come to you. Book online.`}
+>
+  <!-- ============ HERO ============ -->
+  <section class="border-b border-white/5 bg-ink-800">
+    <div class="container-site py-16 sm:py-24">
+      <p class="eyebrow mb-4">Mobile Detailing · {NAP.city} &amp; the Metro East</p>
+      <h1 class="display max-w-3xl text-4xl sm:text-5xl lg:text-6xl">
+        Detailing for how your car actually gets used.
+      </h1>
+      <p class="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
+        Pick a category below — full options, vehicle sizes, and exact pricing are in our
+        online booking. Everything is done at your driveway, home or work.
+      </p>
+      <div class="mt-8">
+        <CtaButton>Book Now</CtaButton>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SERVICE CATEGORIES (high level — full menu lives in Fieldd) ============ -->
+  <section class="py-20 sm:py-28">
+    <div class="container-site">
+      <SectionHeading eyebrow="Services" title="Six ways we can help." align="center">
+        Prices vary by vehicle size and condition — you'll see exact options when you book.
+      </SectionHeading>
+      <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {
+          categories.map((c) => (
+            <div
+              class:list={[
+                'flex flex-col rounded-lg border p-7',
+                c.featured ? 'border-brand bg-ink-700 shadow-xl shadow-brand/10' : 'border-ink-600 bg-ink-800',
+              ]}
+            >
+              {c.featured && <p class="eyebrow mb-2">Most Popular</p>}
+              <h2 class="font-display text-xl font-bold uppercase tracking-tight text-white">{c.name}</h2>
+              <p class="mt-2 font-display text-2xl font-extrabold text-white">{c.price}</p>
+              <p class="mt-3 flex-1 text-sm leading-relaxed text-slate-400">{c.blurb}</p>
+              {c.learnMore && (
+                <a href={c.learnMore} class="mt-4 text-sm font-semibold text-brand hover:text-brand-light">
+                  Learn about ceramic coating →
+                </a>
+              )}
+              <CtaButton href={c.href} variant={c.featured ? 'solid' : 'outline'} size="md" class="mt-6">
+                {c.cta}
+              </CtaButton>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CERAMIC UPSELL ============ -->
+  <section class="border-t border-white/5 bg-ink-800 py-20 sm:py-28">
+    <div class="container-site grid items-center gap-10 rounded-lg border border-ink-600 bg-gradient-to-br from-ink-700 to-ink p-8 sm:p-12 lg:grid-cols-2">
+      <div>
+        <p class="eyebrow mb-3">Want it to stay this way?</p>
+        <h2 class="display text-3xl sm:text-4xl">Lock in the finish with a ceramic coating.</h2>
+        <p class="mt-4 leading-relaxed text-slate-400">
+          A detail makes your car look new. A ceramic coating keeps it that way for years —
+          and makes every wash after it twice as easy.
+        </p>
+        <a
+          href="/ceramic-coating-belleville"
+          class="mt-6 inline-flex items-center gap-2 font-display text-base font-bold uppercase tracking-wide text-brand hover:text-brand-light"
+        >
+          Learn about ceramic coating
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 8h10M9 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </a>
+      </div>
+      <div class="aspect-video overflow-hidden rounded-lg">
+        <Photo
+          src={trxWithVan}
+          alt="Glossy blue Ram TRX freshly detailed in a driveway with the Polished Midwest mobile detailing van behind it"
+          sizes="(min-width: 1024px) 50vw, 100vw"
+          widths={[640, 1200]}
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="border-t border-white/5 py-20 sm:py-24">
+    <div class="container-site text-center">
+      <h2 class="display mx-auto max-w-2xl text-3xl sm:text-4xl">See full options and grab a spot.</h2>
+      <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <CtaButton>Book Now</CtaButton>
+        <a href={NAP.phoneHref} class="font-display text-base font-bold uppercase tracking-wide text-slate-300 hover:text-white">
+          or call {NAP.phone}
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

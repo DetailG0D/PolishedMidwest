@@ -1,0 +1,26 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CtaButton from '../components/CtaButton.astro';
+import { NAP } from '../consts';
+---
+
+<BaseLayout
+  title={`Page Not Found | ${NAP.name}`}
+  description="That page doesn't exist — but your car can still get detailed. Book online or head back to the homepage."
+>
+  <section class="flex min-h-[60vh] items-center py-20">
+    <div class="container-site text-center">
+      <p class="eyebrow mb-4">404</p>
+      <h1 class="display mx-auto max-w-2xl text-4xl sm:text-5xl">This page got detailed a little too hard.</h1>
+      <p class="mx-auto mt-5 max-w-md text-lg text-slate-400">
+        It's not here anymore — but your car can still look brand new.
+      </p>
+      <div class="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <CtaButton>Book Now</CtaButton>
+        <a href="/" class="font-display text-base font-bold uppercase tracking-wide text-slate-300 hover:text-white">
+          Back to homepage
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

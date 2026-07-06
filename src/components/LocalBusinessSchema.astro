@@ -1,0 +1,64 @@
+---
+/**
+ * LocalBusiness JSON-LD for the auto-detailing business.
+ * schema.org has no "AutoDetailing" type — AutoWash (under AutomotiveBusiness)
+ * is the accepted closest type for detailers; additionalType disambiguates.
+ */
+import { SITE, NAP, SERVICE_AREAS, FIELDD_BOOKING_URL } from '../consts';
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'AutoWash',
+  additionalType: 'http://www.productontology.org/id/Auto_detailing',
+  '@id': `${SITE.url}/#business`,
+  name: SITE.name,
+  legalName: SITE.legalName,
+  description:
+    'Mobile car detailing and ceramic coating serving Belleville, IL and the Metro East. Interior detailing, exterior detailing, full details, and professional ceramic coatings — we come to you.',
+  url: SITE.url,
+  telephone: '+16189001511',
+  image: `${SITE.url}${SITE.ogImage}`,
+  priceRange: '$$',
+  address: {
+    '@type': 'PostalAddress',
+    addressLocality: NAP.city,
+    addressRegion: NAP.state,
+    postalCode: NAP.zip,
+    addressCountry: 'US',
+  },
+  geo: {
+    '@type': 'GeoCoordinates',
+    latitude: 38.52,
+    longitude: -89.9839,
+  },
+  openingHoursSpecification: [
+    {
+      '@type': 'OpeningHoursSpecification',
+      dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+      opens: '08:00',
+      closes: '20:00',
+    },
+  ],
+  areaServed: [
+    ...SERVICE_AREAS.map((city) => ({
+      '@type': 'City',
+      name: `${city}, IL`,
+    })),
+    { '@type': 'AdministrativeArea', name: 'Metro East, Illinois' },
+    { '@type': 'AdministrativeArea', name: 'Greater St. Louis' },
+  ],
+  makesOffer: [
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Ceramic Coating' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Interior Detailing' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Exterior Detailing' } },
+    { '@type': 'Offer', itemOffered: { '@type': 'Service', name: 'Full Detail' } },
+  ],
+  potentialAction: {
+    '@type': 'ReserveAction',
+    target: FIELDD_BOOKING_URL,
+    name: 'Book Online',
+  },
+};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} is:inline />

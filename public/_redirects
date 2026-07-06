@@ -1,0 +1,22 @@
+# 301 redirect map — old Wix URLs → new site (Cloudflare Pages format).
+# Source of truth for old URLs: the old site's pages-sitemap.xml (crawled 2026-07).
+
+# Wix's duplicate homepage slug
+/home / 301
+
+# Wix's auto-generated services slug → clean services URL
+/copy-of-services-1 /services 301
+
+# Old fleet/dealership page — no equivalent on the new site (revisit if fleet work returns)
+/dealership-fleet-belleville /services 301
+
+# Quote + booking intent now goes straight to Fieldd.
+# ⚠️ Keep in sync with FIELDD_BOOKING_URL in src/consts.ts
+/get-quote https://polishedmidwest.fieldd.co/ 301
+/bookonline https://polishedmidwest.fieldd.co/ 301
+/book https://polishedmidwest.fieldd.co/ 301
+
+# Convenience alias for the ceramic landing page (kept at its original URL)
+/ceramic-coating /ceramic-coating-belleville 301
+
+# Kept as-is (no redirect needed): / , /ceramic-coating-belleville , /contact-us
