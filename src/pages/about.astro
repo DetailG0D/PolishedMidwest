@@ -1,0 +1,104 @@
+---
+/**
+ * About — short, personable, owner-forward. Bio copy is Lucas's own words,
+ * verbatim — don't rewrite it.
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CtaButton from '../components/CtaButton.astro';
+import Photo from '../components/Photo.astro';
+import { NAP, GOOGLE_RATING } from '../consts';
+
+import washingTrx from '../assets/photos/washing-blue-ram-trx.jpg';
+---
+
+<BaseLayout
+  title={`About ${NAP.name} | Local Detailer in Belleville, IL`}
+  description={`Meet the owner behind ${NAP.name} — a local, owner-operated mobile detailing and ceramic coating business serving Belleville, IL and the Metro East.`}
+>
+  <section class="py-16 sm:py-24">
+    <div class="container-site grid items-start gap-12 lg:grid-cols-5">
+      <div class="lg:col-span-3">
+        <p class="eyebrow mb-4">About Polished Midwest</p>
+        <h1 class="display text-4xl sm:text-5xl">
+          Local. Owner-operated.<br />
+          <span class="text-brand">Obsessive about the details.</span>
+        </h1>
+
+        <div class="mt-8 space-y-5 text-base leading-relaxed text-slate-300">
+          <p>
+            I'm Lucas, owner and operator of Polished Midwest. I started this business as a
+            senior at Belleville Township High School West, with a simple idea: bring
+            convenient, high-quality car care straight to your driveway. Before that, I
+            worked at a car wash and saw firsthand how many places cut corners on quality
+            just to move cars through faster. That didn't sit right with me, so I built
+            something different.
+          </p>
+          <p>
+            Polished Midwest is based right here in Belleville, and I'm not interested in
+            being anything but local. I grew up in these neighborhoods, and most of my
+            clients are people I've known for years or who found me through someone I've
+            worked with. When you book with me, you're not dealing with a call center or a
+            franchise, you're dealing with the guy who's going to show up at your house.
+          </p>
+          <p>
+            I don't rush jobs, and I don't skip steps to save time. Every vehicle gets the
+            same attention to detail whether it's a daily driver or a weekend car. When I
+            show up, expect a thorough walkaround before I start, clear communication about
+            what your car needs versus what's just an upsell, and a finished product that
+            actually holds up, not one that looks good for a week and falls apart after the
+            first rain.
+          </p>
+        </div>
+
+        <div class="mt-10 flex flex-wrap items-center gap-4">
+          <CtaButton>Book Now</CtaButton>
+          <a href={NAP.phoneHref} class="font-display text-base font-bold uppercase tracking-wide text-slate-300 hover:text-white">
+            {NAP.phone}
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-6 lg:col-span-2">
+        <!-- Work-in-action shot for now. A friendly, face-forward owner portrait would
+             convert better here — still on the shoot list (see CONTENT.md). -->
+        <div class="aspect-[4/5] overflow-hidden rounded-lg">
+          <Photo
+            src={washingTrx}
+            alt="Polished Midwest owner pressure-washing a blue Ram TRX during a mobile detail"
+            sizes="(min-width: 1024px) 40vw, 100vw"
+            widths={[640, 1000]}
+          />
+        </div>
+        <div class="rounded-lg border border-ink-600 bg-ink-800 p-6">
+          <p class="font-display text-3xl font-extrabold text-white">{GOOGLE_RATING.value} ★</p>
+          <p class="mt-1 text-sm text-slate-400">
+            Google rating from {GOOGLE_RATING.count} local reviews
+          </p>
+          <ul class="mt-5 space-y-2.5 text-sm text-slate-300">
+            <li class="flex gap-2.5">
+              <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand"></span>
+              Based in {NAP.city}, {NAP.stateFull}
+            </li>
+            <li class="flex gap-2.5">
+              <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand"></span>
+              Fully mobile — your driveway is our shop
+            </li>
+            <li class="flex gap-2.5">
+              <span class="mt-2 h-1 w-1 shrink-0 rounded-full bg-brand"></span>
+              The owner answers the phone — not a call center
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-white/5 bg-ink-800 py-16 sm:py-20">
+    <div class="container-site text-center">
+      <h2 class="display mx-auto max-w-2xl text-3xl sm:text-4xl">Let's get your car on the schedule.</h2>
+      <div class="mt-8">
+        <CtaButton>Book Now</CtaButton>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

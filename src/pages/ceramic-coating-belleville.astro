@@ -1,0 +1,427 @@
+---
+/**
+ * CERAMIC COATING LANDING PAGE — the destination for paid ad traffic.
+ * Single-minded: one offer ("Book a Free Paint Inspection"), one action,
+ * minimal navigation (BaseLayout `minimal` strips header nav + footer links).
+ * URL kept identical to the old site for SEO: /ceramic-coating-belleville
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CtaButton from '../components/CtaButton.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import ReviewCard from '../components/ReviewCard.astro';
+import GoogleRating from '../components/GoogleRating.astro';
+import Photo from '../components/Photo.astro';
+import HeroImage from '../components/HeroImage.astro';
+import { NAP, CERAMIC_BOOKING_URL } from '../consts';
+import { CERAMIC_PAGE_REVIEW } from '../data/reviews';
+
+import heroEscalade from '../assets/photos/ceramic-gloss-black-cadillac-escalade.jpg';
+import heroEscaladeMobile from '../assets/photos/ceramic-gloss-black-cadillac-escalade-mobile.jpg';
+import baWaterSpots from '../assets/photos/before-after-hard-water-spot-removal.jpg';
+import gleGloss from '../assets/photos/ceramic-mercedes-gle-gloss.jpg';
+import genesisGloss from '../assets/photos/ceramic-genesis-gv80-gloss.jpg';
+import expeditionGloss from '../assets/photos/gallery-black-ford-expedition-detailed.jpg';
+import wheelAction from '../assets/photos/detailer-cleaning-bmw-x7-wheel.jpg';
+
+const gridSizes = '(min-width: 640px) 50vw, 100vw';
+
+const CTA_LABEL = 'Book a Free Paint Inspection';
+
+const threats = [
+  {
+    title: 'Midwest Road Salt',
+    text: 'Illinois winters are brutal on paint. A ceramic coating seals the surface so salt and brine rinse off instead of eating in.',
+  },
+  {
+    title: 'Sun & UV Fade',
+    text: 'UV slowly burns the life out of your clear coat. Coated paint stays deeper and glossier for years, not months.',
+  },
+  {
+    title: 'Bird Droppings & Bugs',
+    text: 'Both are acidic enough to permanently etch bare clear coat in a single hot afternoon. A coating buys you time and easy cleanup.',
+  },
+  {
+    title: 'Brake Dust & Road Grime',
+    text: 'Contamination bonds to unprotected paint. On a coated car it sits on top — and slides off with a rinse.',
+  },
+  {
+    title: 'Wash Swirls & Light Scratches',
+    text: 'The hard ceramic layer takes the abuse your clear coat used to, so paint stays swirl-free far longer.',
+  },
+  {
+    title: 'Water Spots & Staining',
+    text: 'Water beads and sheets off instead of drying into mineral spots baked in by the sun.',
+  },
+];
+
+/**
+ * The two ceramic packages. Highlights only — the full itemized menu lives in
+ * Fieldd. Confirm starting prices before launch (see CONTENT.md).
+ */
+const packages = [
+  {
+    name: 'Clay & Coat',
+    price: 'Starting at $447',
+    term: '1-Year+ Ceramic Protection',
+    featured: false,
+    desc: 'Full decontamination plus a year-plus of ceramic protection — the easiest way to get into real paint protection.',
+    includes: [
+      'Professional hand wash & clay bar decontamination',
+      '1-year+ paint ceramic coating (1-year warranty)',
+      'Wheels, tires & wheel wells detailed',
+      'Door jambs, gas cap & door coated',
+      'Windows, mirrors & engine bay detailed',
+    ],
+  },
+  {
+    name: '3 Year Protection',
+    price: 'Starting at $947',
+    term: '3-Year Ceramic Warranty',
+    featured: true,
+    desc: 'Ultra high gloss coating & single stage paint enhancement — swirls and light scratches polished out before the coating locks in the finish.',
+    includes: [
+      'Full exterior detail + clay decontamination',
+      '1-step paint enhancement (removes minor swirls & scratches)',
+      'Hard water spot removal — entire vehicle',
+      '1 layer of 3-year ceramic coating on all body panels',
+      'Engine bay detail · 3-year ceramic warranty',
+    ],
+  },
+];
+
+const faqs = [
+  {
+    q: 'What actually is a ceramic coating?',
+    a: 'A liquid polymer applied by hand that chemically bonds to your paint and cures into a hard, glass-like layer over about 24 hours — during that first day the car just needs to stay dry and out of the rain. Once cured, unlike wax (weeks) or sealants (months), a professionally applied coating protects for years.',
+  },
+  {
+    q: 'How long does a ceramic coating last?',
+    a: 'Depends on the package: our Clay & Coat package carries a 1-year+ coating with a 1-year warranty, and our 3 Year Protection package carries a 3-year ceramic warranty. At your free paint inspection we’ll recommend the right level for how you actually use the car.',
+  },
+  {
+    q: 'Why do I need a paint inspection first?',
+    a: 'A coating locks in whatever is underneath it — including swirls and scratches. We inspect your paint first so we can quote the right amount of prep and correction. The inspection is free and there’s no obligation.',
+  },
+  {
+    q: 'Will it stop rock chips and scratches?',
+    a: 'Honest answer: no coating stops rock chips — anyone who says otherwise is selling you. It does resist light scratches, wash swirls, and chemical etching far better than bare clear coat.',
+  },
+  {
+    q: 'Do I still have to wash my car?',
+    a: 'Yes, but it becomes dramatically easier. Dirt doesn’t bond to the coating, so most grime rinses off, drying is faster, and you’ll never need to wax again.',
+  },
+  {
+    q: 'Is it worth it on a daily driver, not just a show car?',
+    a: 'Daily drivers arguably benefit the most — they face the salt, sun, and parking lots every day. A coating keeps a daily looking new with a fraction of the upkeep, and protects resale value.',
+  },
+  {
+    q: 'Do I need shade or a garage for you to apply it?',
+    a: 'Ceramic coating has to be applied out of direct sunlight, so during application the car needs to sit in a garage, carport, or a shaded spot. No garage? No problem — a well-shaded area works too, and we’ll figure out the best spot together when you book.',
+  },
+  {
+    q: 'Do you really come to me?',
+    a: `Yes — we’re fully mobile across ${NAP.city} and the Metro East. Your car gets coated in your own driveway or workplace parking lot.`,
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faqs.map((f) => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+};
+---
+
+<BaseLayout
+  title={`Ceramic Coating Belleville, IL | Free Paint Inspection | ${NAP.name}`}
+  description={`Professional ceramic coating in Belleville, IL & the Metro East. Years of gloss and protection from salt, sun, and grime — applied at your driveway. Book a free paint inspection.`}
+  minimal
+  stickyCtaHref={CERAMIC_BOOKING_URL}
+  stickyCtaLabel="Free Paint Inspection"
+>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(faqSchema)} is:inline />
+
+  <!-- ============ HERO ============
+       Same treatment as the home hero: one cohesive full-bleed hero, photo
+       behind the text on all breakpoints with a dark overlay. -->
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0">
+      <HeroImage
+        desktop={heroEscalade}
+        mobile={heroEscaladeMobile}
+        alt="Black Cadillac Escalade with mirror-deep gloss after paint enhancement and detailing in Belleville, IL"
+        position="object-[45%_60%] md:object-[60%_65%]"
+      />
+      <div class="absolute inset-0 bg-gradient-to-b from-ink/90 via-ink/70 to-ink md:hidden"></div>
+      <div class="absolute inset-0 hidden bg-gradient-to-r from-ink via-ink/80 via-45% to-ink/10 md:block"></div>
+      <div class="absolute inset-x-0 bottom-0 hidden h-28 bg-gradient-to-t from-ink to-transparent md:block"></div>
+    </div>
+
+    <div class="container-site relative py-24 sm:py-32 md:py-36">
+      <p class="eyebrow mb-4">Ceramic Coating · {NAP.city}, {NAP.state}</p>
+      <h1 class="display max-w-2xl text-4xl sm:text-5xl lg:text-6xl">
+        Wax Lasts Weeks.<br />
+        <span class="text-brand">This Lasts Years.</span>
+      </h1>
+      <p class="mt-6 max-w-xl text-lg leading-relaxed text-slate-300">
+        Professional ceramic coating that shields your paint from Illinois salt, sun, and grime —
+        applied at your driveway by a detailer who preps the paint right first.
+      </p>
+      <div class="mt-9">
+        <CtaButton href={CERAMIC_BOOKING_URL}>{CTA_LABEL}</CtaButton>
+        <p class="mt-3 text-sm text-slate-400">Free · No obligation · Takes 60 seconds to book</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRUST STRIP ============ -->
+  <section class="border-y border-white/5 bg-ink-800">
+    <div class="container-site flex flex-wrap items-center justify-center gap-x-10 gap-y-3 py-6 text-sm text-slate-400">
+      <GoogleRating />
+      <span>We come to you — fully mobile</span>
+      <span>Serving {NAP.city} &amp; the Metro East</span>
+      <span>Paint inspected &amp; prepped before every coating</span>
+    </div>
+  </section>
+
+  <!-- ============ WHAT IT PROTECTS AGAINST ============ -->
+  <section class="py-20 sm:py-28">
+    <div class="container-site">
+      <SectionHeading eyebrow="Why Coat It" title="Your clear coat is fighting the Midwest. And losing.">
+        Every uncoated car in the Metro East is slowly being dulled by the same six things.
+        A ceramic coating is a sacrificial glass-hard layer that takes the hit instead.
+      </SectionHeading>
+      <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {
+          threats.map((t) => (
+            <div class="rounded-lg border border-ink-600 bg-ink-800 p-6">
+              <h3 class="font-display text-base font-bold uppercase tracking-tight text-white">{t.title}</h3>
+              <p class="mt-2 text-sm leading-relaxed text-slate-400">{t.text}</p>
+            </div>
+          ))
+        }
+      </div>
+      <div class="mt-12 text-center">
+        <CtaButton href={CERAMIC_BOOKING_URL}>{CTA_LABEL}</CtaButton>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ BEFORE / AFTER ============ -->
+  <section class="border-y border-white/5 bg-ink-800 py-20 sm:py-28">
+    <div class="container-site">
+      <SectionHeading eyebrow="The Results" title="This is what protected paint looks like." align="center" />
+      <div class="mt-12 grid gap-6 sm:grid-cols-2">
+        <figure>
+          <div class="aspect-[4/3] overflow-hidden rounded-lg">
+            <Photo
+              src={baWaterSpots}
+              alt="Before and after hard water spot removal on a black SUV windshield and paint in Belleville, IL"
+              sizes={gridSizes}
+              widths={[640, 1200]}
+            />
+          </div>
+          <figcaption class="mt-3 text-sm text-slate-400">
+            Hard water spot removal — included in the 3 Year Protection package.
+          </figcaption>
+        </figure>
+        <figure>
+          <div class="aspect-[4/3] overflow-hidden rounded-lg">
+            <Photo
+              src={expeditionGloss}
+              alt="Black Ford Expedition with deep wet-look gloss after detailing in the Metro East"
+              sizes={gridSizes}
+              widths={[640, 1200]}
+            />
+          </div>
+          <figcaption class="mt-3 text-sm text-slate-400">Deep, wet-look gloss — even on big black SUVs.</figcaption>
+        </figure>
+        <figure>
+          <div class="aspect-[4/3] overflow-hidden rounded-lg">
+            <Photo
+              src={gleGloss}
+              alt="Black Mercedes GLE coupe with wet-look gloss finish after detailing in the Metro East"
+              sizes={gridSizes}
+              widths={[640, 1200]}
+            />
+          </div>
+          <figcaption class="mt-3 text-sm text-slate-400">Black paint, brought to a mirror finish.</figcaption>
+        </figure>
+        <figure>
+          <div class="aspect-[4/3] overflow-hidden rounded-lg">
+            <Photo
+              src={genesisGloss}
+              alt="Dark green Genesis GV80 with high gloss paint finish after detailing"
+              sizes={gridSizes}
+              widths={[640, 1200]}
+            />
+          </div>
+          <figcaption class="mt-3 text-sm text-slate-400">Daily drivers deserve this finish too.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PACKAGES ============ -->
+  <section class="py-20 sm:py-28">
+    <div class="container-site">
+      <SectionHeading eyebrow="Packages" title="Two packages. One free inspection." align="center">
+        Both start with proper decontamination — a coating is only as good as the surface under it.
+        Final pricing depends on your vehicle's size and condition, confirmed at your free inspection.
+      </SectionHeading>
+      <div class="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
+        {
+          packages.map((p) => (
+            <div
+              class:list={[
+                'flex flex-col rounded-lg border p-7',
+                p.featured ? 'border-brand bg-ink-700 shadow-xl shadow-brand/10' : 'border-ink-600 bg-ink-800',
+              ]}
+            >
+              {p.featured && <p class="eyebrow mb-3">Recommended</p>}
+              <h3 class="font-display text-xl font-bold uppercase tracking-tight text-white">{p.name}</h3>
+              <p class="mt-1 text-sm text-slate-400">{p.term}</p>
+              <p class="mt-4 font-display text-3xl font-extrabold text-white">{p.price}</p>
+              <p class="mt-3 text-sm leading-relaxed text-slate-400">{p.desc}</p>
+              <ul class="mt-6 flex-1 space-y-2.5 text-sm text-slate-300">
+                {p.includes.map((item) => (
+                  <li class="flex gap-2.5">
+                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-brand" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M3 8.5l3.5 3.5L13 4.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <CtaButton href={CERAMIC_BOOKING_URL} variant={p.featured ? 'solid' : 'outline'} size="md" class="mt-7">
+                {CTA_LABEL}
+              </CtaButton>
+            </div>
+          ))
+        }
+      </div>
+
+      <!-- Coating add-ons — deliberately compact/secondary so the two main
+           packages keep the visual priority -->
+      <div class="mx-auto mt-6 grid max-w-4xl gap-3 sm:grid-cols-2">
+        {
+          [
+            { name: 'Glass Coating', price: '$149' },
+            { name: 'Wheel Coating', price: '$129' },
+          ].map((a) => (
+            <div class="flex items-center justify-between rounded-md border border-ink-600 bg-ink px-5 py-3.5">
+              <span class="text-sm text-slate-300">
+                <span class="mr-2 rounded bg-brand/15 px-1.5 py-0.5 font-display text-[10px] font-bold uppercase tracking-widest text-brand">Add-on</span>
+                {a.name}
+              </span>
+              <span class="font-display text-base font-bold text-white">{a.price}</span>
+            </div>
+          ))
+        }
+      </div>
+
+      <p class="mt-8 text-center text-sm text-slate-500">
+        Full options, vehicle sizes, and add-ons are in our online booking.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ WHY US / PROOF ============ -->
+  <section class="border-y border-white/5 bg-ink-800 py-20 sm:py-28">
+    <div class="container-site grid items-center gap-12 lg:grid-cols-2">
+      <div>
+        <SectionHeading eyebrow="Why Polished Midwest" title="The coating is only half the job.">
+          Anyone can buy a bottle of coating. The result you see in two years comes from what happens
+          before it goes on — and that's where we're obsessive.
+        </SectionHeading>
+        <ul class="mt-8 space-y-5">
+          <li class="flex gap-4">
+            <span class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand/15 font-display font-bold text-brand">1</span>
+            <div>
+              <h3 class="font-semibold text-white">Paint inspected first, always</h3>
+              <p class="mt-1 text-sm leading-relaxed text-slate-400">
+                We evaluate your paint in person and tell you exactly what it needs — no over-selling correction you don't need.
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand/15 font-display font-bold text-brand">2</span>
+            <div>
+              <h3 class="font-semibold text-white">Prep, decontaminate, correct — then coat</h3>
+              <p class="mt-1 text-sm leading-relaxed text-slate-400">
+                Coating over dirty or swirled paint locks the flaws in forever. We never skip the prep.
+              </p>
+            </div>
+          </li>
+          <li class="flex gap-4">
+            <span class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand/15 font-display font-bold text-brand">3</span>
+            <div>
+              <h3 class="font-semibold text-white">Local, owner-operated, accountable</h3>
+              <p class="mt-1 text-sm leading-relaxed text-slate-400">
+                You're not a ticket number at a chain. The person who coats your car answers the phone: {NAP.phone}.
+              </p>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="space-y-6">
+        <div class="aspect-[4/3] overflow-hidden rounded-lg">
+          <Photo
+            src={wheelAction}
+            alt="Polished Midwest detailer hand-scrubbing the wheels of a white BMW X7 during prep"
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            widths={[640, 1000]}
+          />
+        </div>
+        <!-- Real general review used as a trust quote — deliberately NOT labeled
+             as a ceramic review (no ceramic-specific review exists yet).
+             Swap via CERAMIC_PAGE_REVIEW in src/data/reviews.ts. -->
+        <ReviewCard quote={CERAMIC_PAGE_REVIEW.quote} name={CERAMIC_PAGE_REVIEW.name} />
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section class="py-20 sm:py-28">
+    <div class="container-site max-w-3xl">
+      <SectionHeading eyebrow="Straight Answers" title="Ceramic coating FAQ." align="center" />
+      <div class="mt-10 divide-y divide-ink-600 rounded-lg border border-ink-600 bg-ink-800">
+        {
+          faqs.map((f) => (
+            <details class="group p-6">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold text-white [&::-webkit-details-marker]:hidden">
+                {f.q}
+                <svg class="h-5 w-5 shrink-0 text-brand transition-transform group-open:rotate-45" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M10 4v12M4 10h12" stroke-linecap="round" />
+                </svg>
+              </summary>
+              <p class="mt-3 text-sm leading-relaxed text-slate-400">{f.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section class="border-t border-white/5 bg-ink-800 py-20 sm:py-28">
+    <div class="container-site text-center">
+      <h2 class="display mx-auto max-w-3xl text-3xl sm:text-5xl">
+        Find out what your paint needs — <span class="text-brand">free.</span>
+      </h2>
+      <p class="mx-auto mt-5 max-w-xl text-lg text-slate-400">
+        We'll inspect your paint, walk you through the options, and give you an exact quote.
+        No pressure, no obligation.
+      </p>
+      <div class="mt-9 flex flex-col items-center gap-4">
+        <CtaButton href={CERAMIC_BOOKING_URL}>{CTA_LABEL}</CtaButton>
+        <a href={NAP.phoneHref} class="text-sm font-semibold text-slate-400 hover:text-white">
+          Questions first? Call {NAP.phone}
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

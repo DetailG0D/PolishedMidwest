@@ -1,0 +1,126 @@
+---
+/**
+ * Contact — NAP, service area, hours, Book Now → Fieldd. NO quote form by
+ * design (all booking runs through Fieldd). URL kept from old site: /contact-us
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CtaButton from '../components/CtaButton.astro';
+import SectionHeading from '../components/SectionHeading.astro';
+import Photo from '../components/Photo.astro';
+import { NAP, SITE, SERVICE_AREAS } from '../consts';
+
+import detailingVan from '../assets/photos/polished-midwest-mobile-detailing-van.jpg';
+---
+
+<BaseLayout
+  title={`Contact ${NAP.name} | Mobile Detailing Belleville, IL | ${NAP.phone}`}
+  description={`Contact ${NAP.name} — mobile car detailing & ceramic coating in Belleville, IL. Call ${NAP.phone} or book online. Serving the Metro East within 25 miles.`}
+>
+  <section class="py-16 sm:py-24">
+    <div class="container-site grid gap-12 lg:grid-cols-2">
+      <div>
+        <p class="eyebrow mb-4">Contact</p>
+        <h1 class="display text-4xl sm:text-5xl">Fastest way to reach us? <span class="text-brand">Book online.</span></h1>
+        <p class="mt-6 max-w-lg text-lg leading-relaxed text-slate-300">
+          Booking takes about a minute and locks in your spot instantly. Prefer to talk
+          first? Call or text — you'll get the owner, not a call center.
+        </p>
+        <div class="mt-8 flex flex-wrap items-center gap-4">
+          <CtaButton>Book Now</CtaButton>
+          <a href={NAP.phoneHref} class="font-display text-base font-bold uppercase tracking-wide text-slate-300 hover:text-white">
+            {NAP.phone}
+          </a>
+        </div>
+
+        <dl class="mt-12 space-y-6">
+          <div class="flex gap-4">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand/15 text-brand">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M2 3.6C2 2.7 2.7 2 3.6 2h2.2c.8 0 1.4.5 1.6 1.2l.8 2.9c.2.6 0 1.3-.5 1.7l-1.2 1a12.9 12.9 0 004.7 4.7l1-1.2c.4-.5 1.1-.7 1.7-.5l2.9.8c.7.2 1.2.8 1.2 1.6v2.2c0 .9-.7 1.6-1.6 1.6H15C7.8 18 2 12.2 2 5V3.6z" />
+              </svg>
+            </span>
+            <div>
+              <dt class="text-sm font-semibold uppercase tracking-wider text-slate-500">Phone</dt>
+              <dd class="mt-1 text-white"><a class="hover:text-brand-light" href={NAP.phoneHref}>{NAP.phone}</a></dd>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand/15 text-brand">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M3 5h14v10H3z" /><path d="M3 6l7 5 7-5" />
+              </svg>
+            </span>
+            <div>
+              <dt class="text-sm font-semibold uppercase tracking-wider text-slate-500">Email</dt>
+              <dd class="mt-1 text-white">{NAP.email}</dd>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand/15 text-brand">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M10 18s6-5.1 6-9.5A6 6 0 004 8.5C4 12.9 10 18 10 18z" /><circle cx="10" cy="8.5" r="2" />
+              </svg>
+            </span>
+            <div>
+              <dt class="text-sm font-semibold uppercase tracking-wider text-slate-500">Based In</dt>
+              <dd class="mt-1 text-white">{NAP.city}, {NAP.stateFull}</dd>
+              <dd class="text-sm text-slate-400">Fully mobile — we come to your home or work</dd>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-brand/15 text-brand">
+              <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <circle cx="10" cy="10" r="7" /><path d="M10 6v4l2.5 2.5" stroke-linecap="round" />
+              </svg>
+            </span>
+            <div>
+              <dt class="text-sm font-semibold uppercase tracking-wider text-slate-500">Hours</dt>
+              <dd class="mt-1 text-white">{NAP.hours}</dd>
+            </div>
+          </div>
+        </dl>
+      </div>
+
+      <div>
+        <figure>
+          <div class="aspect-square overflow-hidden rounded-lg">
+            <Photo
+              src={detailingVan}
+              alt="Polished Midwest wrapped mobile detailing van — car detailing that comes to you in Belleville, IL and the Metro East"
+              sizes="(min-width: 1024px) 50vw, 100vw"
+              widths={[640, 1200]}
+            />
+          </div>
+          <figcaption class="mt-3 text-sm text-slate-400">The shop that shows up at your driveway.</figcaption>
+        </figure>
+        <div class="mt-8">
+          <SectionHeading title="Where we go" as="h3" class="[&_h3]:text-2xl" />
+          <p class="mt-3 text-sm leading-relaxed text-slate-400">
+            Serving everywhere within roughly 25 miles of {NAP.city} — the Metro East and
+            the Illinois side of the St.&nbsp;Louis metro. A few of the towns we're in every week:
+          </p>
+          <ul class="mt-5 grid grid-cols-2 gap-x-6 gap-y-2 text-sm text-slate-400">
+            {SERVICE_AREAS.map((town) => (
+              <li class="flex items-center gap-2">
+                <span class="h-1 w-1 rounded-full bg-brand"></span>
+                {town}, IL
+              </li>
+            ))}
+          </ul>
+          <p class="mt-5 text-sm text-slate-500">
+            {SITE.legalName} · {NAP.city}, {NAP.state} · <a class="hover:text-slate-300" href={NAP.phoneHref}>{NAP.phone}</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="border-t border-white/5 bg-ink-800 py-16 sm:py-20">
+    <div class="container-site text-center">
+      <h2 class="display mx-auto max-w-2xl text-3xl sm:text-4xl">Skip the phone tag — grab a spot online.</h2>
+      <div class="mt-8">
+        <CtaButton>Book Now</CtaButton>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

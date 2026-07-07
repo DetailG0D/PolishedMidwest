@@ -1,0 +1,45 @@
+---
+/**
+ * Google reviews section — renders the REAL reviews from src/data/reviews.ts
+ * (verbatim from the Google Business Profile; edit them there).
+ *
+ * Optional upgrade later: replace the cards with a live Google-reviews widget
+ * (Elfsight, Trustmary, etc.) by pasting its embed snippet in place of the
+ * grid below — those pull reviews via Google's API and auto-update.
+ *
+ * The "See More Reviews" button needs the real Google reviews URL in
+ * GOOGLE_RATING.url (src/consts.ts) — see CONTENT.md.
+ */
+import GoogleRating from './GoogleRating.astro';
+import ReviewCard from './ReviewCard.astro';
+import SectionHeading from './SectionHeading.astro';
+import { GOOGLE_RATING } from '../consts';
+import { HOME_REVIEWS } from '../data/reviews';
+---
+
+<section class="py-20 sm:py-28">
+  <div class="container-site">
+    <SectionHeading eyebrow="Google Reviews" title="What your neighbors say." align="center" />
+    <div class="mt-6 flex justify-center">
+      <GoogleRating />
+    </div>
+
+    <div class="mt-12 grid gap-6 md:grid-cols-3">
+      {HOME_REVIEWS.map((r) => <ReviewCard quote={r.quote} name={r.name} />)}
+    </div>
+
+    <div class="mt-10 text-center">
+      <a
+        href={GOOGLE_RATING.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-7 py-3.5 font-display text-base font-bold uppercase tracking-wide text-white shadow-lg shadow-brand/25 transition-colors duration-150 hover:bg-brand-dark"
+      >
+        See More Reviews
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+    </div>
+  </div>
+</section>
