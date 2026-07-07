@@ -1,6 +1,0 @@
-# Cloudflare Pages configuration.
-# Used when the project is connected via `wrangler pages` or the CF dashboard
-# (the dashboard also lets you set build command / output dir manually — see README.md).
-name = "polished-midwest"
-compatibility_date = "2026-07-01"
-pages_build_output_dir = "./dist"
