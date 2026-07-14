@@ -77,6 +77,46 @@ const ogImageUrl = new URL(ogImage, SITE.url).href;
     <LocalBusinessSchema />
     <slot name="head" />
 
+    <!-- Persistent anonymous visitor ID (external_id).
+         One random UUID per visitor, persisted in localStorage with a cookie
+         fallback so the SAME value survives across visits. It is passed to
+         fbq('init') as an Advanced Matching external_id (so every browser
+         Pixel event carries it) and forwarded to the /api/paint-inspection-click
+         Pages Function on paint-inspection clicks, so Meta can match the
+         browser event and the server Conversions API event to one person.
+         Must run BEFORE the Pixel init below. -->
+    <script is:inline>
+      (function () {
+        var KEY = 'pm_external_id';
+        function readCookie(name) {
+          var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+          return m ? decodeURIComponent(m[1]) : null;
+        }
+        function uuid() {
+          if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+          var b = new Uint8Array(16);
+          window.crypto.getRandomValues(b);
+          b[6] = (b[6] & 15) | 64; // RFC 4122 v4
+          b[8] = (b[8] & 63) | 128;
+          var h = Array.prototype.map
+            .call(b, function (x) { return ('0' + x.toString(16)).slice(-2); })
+            .join('');
+          return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) +
+            '-' + h.slice(16, 20) + '-' + h.slice(20);
+        }
+        var id = null;
+        try { id = localStorage.getItem(KEY); } catch (e) {}
+        if (!id) id = readCookie(KEY);
+        if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
+          id = uuid().toLowerCase();
+        }
+        try { localStorage.setItem(KEY, id); } catch (e) {}
+        // Refresh the cookie's 2-year clock on every visit
+        document.cookie = KEY + '=' + id + '; Max-Age=63072000; Path=/; SameSite=Lax; Secure';
+        window.__pm = { externalId: id, uuid: uuid, readCookie: readCookie };
+      })();
+    </script>
+
     <!-- Meta Pixel Code -->
     <script is:inline>
       !function(f,b,e,v,n,t,s)
@@ -87,7 +127,8 @@ const ogImageUrl = new URL(ogImage, SITE.url).href;
       t.src=v;s=b.getElementsByTagName(e)[0];
       s.parentNode.insertBefore(t,s)}(window, document,'script',
       'https://connect.facebook.net/en_US/fbevents.js');
-      fbq('init', '1495570652308586');
+      fbq('init', '1495570652308586',
+        window.__pm ? { external_id: window.__pm.externalId } : {});
       fbq('track', 'PageView');
     </script>
     <noscript><img height="1" width="1" style="display:none"
@@ -116,18 +157,54 @@ const ogImageUrl = new URL(ogImage, SITE.url).href;
          - Any Fieldd link            -> standard "Lead" event
          - Paint-inspection deep link -> also custom "PaintInspectionClick"
            (the /service/-2 href identifies every "Book a Free Paint
-           Inspection" CTA, incl. the ceramic page's sticky bar) -->
+           Inspection" CTA, incl. the ceramic page's sticky bar), fired BOTH
+           browser-side (Pixel) and server-side (Conversions API via the
+           /api/paint-inspection-click Pages Function). Both share one
+           per-click event_id (dedup) and the visitor's persistent
+           external_id from window.__pm (person match) — the server mirror
+           fires even when the Pixel is blocked by an ad blocker. -->
     <script is:inline>
       document.addEventListener(
         'click',
         function (e) {
           var t = e.target;
           var a = t && t.closest && t.closest('a[href*="polishedmidwest.fieldd.co"]');
-          if (a && typeof window.fbq === 'function') {
-            window.fbq('track', 'Lead');
-            if (a.href.indexOf('/service/-2') !== -1) {
-              window.fbq('trackCustom', 'PaintInspectionClick');
-            }
+          if (!a) return;
+          if (typeof window.fbq === 'function') window.fbq('track', 'Lead');
+          if (a.href.indexOf('/service/-2') === -1) return;
+
+          var pm = window.__pm || {};
+          var eventId = pm.uuid
+            ? pm.uuid()
+            : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+
+          if (typeof window.fbq === 'function') {
+            window.fbq('trackCustom', 'PaintInspectionClick', {}, { eventID: eventId });
+          }
+
+          var payload = JSON.stringify({
+            event_id: eventId,
+            external_id: pm.externalId || null,
+            event_source_url: location.href,
+            fbp: pm.readCookie ? pm.readCookie('_fbp') : null,
+            fbc: pm.readCookie ? pm.readCookie('_fbc') : null
+          });
+          var sent = false;
+          if (navigator.sendBeacon) {
+            try {
+              sent = navigator.sendBeacon(
+                '/api/paint-inspection-click',
+                new Blob([payload], { type: 'application/json' })
+              );
+            } catch (err) {}
+          }
+          if (!sent && window.fetch) {
+            fetch('/api/paint-inspection-click', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payload,
+              keepalive: true
+            }).catch(function () {});
           }
         },
         true
