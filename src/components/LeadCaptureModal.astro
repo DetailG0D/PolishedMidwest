@@ -136,7 +136,6 @@ import { FIELDD_BOOKING_URL } from '../consts';
     var scriptState = 'idle'; // idle | loading | loaded | failed
     var broken = false; // set true when internals unreachable -> permanent pass-through
     var formEl = null; // the <fieldd-lead-form> host
-    var doctored = false;
     var isOpen = false;
     var succeeded = false;
     var trigger = null; // the clicked CTA, for focus return
@@ -251,8 +250,27 @@ import { FIELDD_BOOKING_URL } from '../consts';
       });
     }
 
+    // The Fieldd component re-renders its shadow content as config/fonts
+    // settle (and after submits), which can wipe both the injected stylesheet
+    // and the hidden/autofilled fields. doctor() is therefore idempotent and
+    // re-runs (via the shadow MutationObserver) whenever needsDoctor() spots
+    // an undoctored form — a one-shot flag loses that race.
+    var AUTOFILL_EMAIL = 'noemail@polishedmidwest.com';
+    function markerStyle() {
+      return formEl && formEl.shadowRoot
+        ? formEl.shadowRoot.querySelector('style[data-pm-lead]')
+        : null;
+    }
+    function needsDoctor() {
+      if (!shadowInput('firstName')) return false; // no form to doctor
+      if (!markerStyle()) return true; // full shadow re-render wiped our style
+      var last = shadowInput('lastName');
+      if (last && rowOf(last).style.display !== 'none') return true; // form rebuilt
+      var email = shadowInput('emailID');
+      if (email && email.value !== AUTOFILL_EMAIL) return true;
+      return false;
+    }
     function doctor() {
-      if (doctored) return true;
       try {
         var first = shadowInput('firstName');
         var phone = shadowInput('phone');
@@ -264,7 +282,7 @@ import { FIELDD_BOOKING_URL } from '../consts';
         var found = formEl.shadowRoot.querySelector('select[name="foundUsReason"]');
         var company = shadowInput('customerCompanyName');
         if (last) { rowOf(last).style.display = 'none'; setValue(last, '-'); }
-        if (email) { rowOf(email).style.display = 'none'; setValue(email, 'noemail@polishedmidwest.com'); }
+        if (email) { rowOf(email).style.display = 'none'; setValue(email, AUTOFILL_EMAIL); }
         if (company) { rowOf(company).style.display = 'none'; }
         if (found) {
           rowOf(found).style.display = 'none';
@@ -286,7 +304,8 @@ import { FIELDD_BOOKING_URL } from '../consts';
         if (submit) submit.textContent = 'Continue to Booking';
 
         // restyle internals to match the site (dark card, brand blue, radius)
-        var style = document.createElement('style');
+        var style = markerStyle() || document.createElement('style');
+        style.setAttribute('data-pm-lead', '');
         style.textContent = [
           ':host{font-family:inherit!important;color-scheme:dark;}',
           'form{gap:12px!important;}',
@@ -295,29 +314,68 @@ import { FIELDD_BOOKING_URL } from '../consts';
           'input::placeholder{color:#64748b!important;}',
           'input:focus,select:focus{border-color:#2882fd!important;outline:none!important;',
           '  box-shadow:0 0 0 2px rgba(40,130,253,.25)!important;}',
-          'button[type="submit"],form button:last-of-type{background:#2882fd!important;color:#fff!important;',
+          // NOTE: submit styling deliberately targets [type=submit] only — a broad
+          // "form button:last-of-type" also matches intl-tel-input's country
+          // selector button (it's the only button in its container) and painted
+          // it brand-blue.
+          'button[type="submit"]{background:#2882fd!important;color:#fff!important;',
           '  border:none!important;border-radius:6px!important;font-weight:700!important;',
           '  text-transform:uppercase!important;letter-spacing:.03em!important;font-family:inherit!important;}',
           'button[type="submit"]:hover{background:#1668dd!important;}',
           '[data-error]::after{color:#f87171!important;}',
+          // Floating field labels ("First Name", "Phone"): dark pill so the
+          // floated state masks the input border without a light chip.
+          'form label{background:#10141c!important;color:#94a3b8!important;',
+          '  padding:0 6px!important;border-radius:4px!important;line-height:1.4!important;}',
+          // ---- intl-tel-input (stable .iti classes, v22) ----
           '.iti{width:100%!important;}',
+          // country selector: same surface as the input, no blue block
+          '.iti button.iti__selected-country{background:transparent!important;color:#fff!important;',
+          '  border:none!important;border-radius:6px 0 0 6px!important;font-family:inherit!important;}',
+          '.iti button.iti__selected-country:hover,.iti button.iti__selected-country:focus{',
+          '  background:rgba(255,255,255,.06)!important;outline:none!important;}',
+          '.iti button.iti__selected-country:focus-visible{box-shadow:inset 0 0 0 2px rgba(40,130,253,.35)!important;}',
+          '.iti__selected-dial-code{color:#fff!important;}',
+          '.iti__arrow{border-top-color:#94a3b8!important;}',
+          '.iti__arrow--up{border-top-color:transparent!important;border-bottom-color:#94a3b8!important;}',
+          // country dropdown panel (desktop + fullscreen mobile popup)
+          '.iti__dropdown-content{background:#171d28!important;color:#e2e8f0!important;',
+          '  border:1px solid #232b3a!important;border-radius:6px!important;',
+          '  box-shadow:0 10px 30px rgba(0,0,0,.5)!important;}',
+          '.iti__country-list{background:transparent!important;}',
+          '.iti__country{color:#e2e8f0!important;}',
+          '.iti__country.iti__highlight,.iti__country:hover{background:#232b3a!important;}',
+          '.iti__dial-code{color:#94a3b8!important;}',
+          '.iti__divider{border-bottom-color:#232b3a!important;}',
+          '.iti__search-input{background:#10141c!important;color:#fff!important;',
+          '  border:1px solid #232b3a!important;border-radius:4px!important;}',
+          '.iti__search-input::placeholder{color:#64748b!important;}',
+          '.iti--container.iti--fullscreen-popup{background:rgba(10,13,18,.85)!important;}',
         ].join('\n');
-        formEl.shadowRoot.appendChild(style);
+        if (!style.parentNode) formEl.shadowRoot.appendChild(style);
 
-        // success detection #2: popup (<h2>) appears inside the shadow root
-        shadowObserver = new MutationObserver(function () {
-          if (submitAttempted && formEl.shadowRoot.querySelector('h2')) onSuccess();
-        });
-        shadowObserver.observe(formEl.shadowRoot, { childList: true, subtree: true });
+        // one persistent observer on the shadow ROOT (survives child wipes):
+        // #1 success detection — popup (<h2>) appears after a submit attempt
+        // #2 re-doctor whenever a re-render produced an undoctored form
+        if (!shadowObserver) {
+          shadowObserver = new MutationObserver(function () {
+            if (submitAttempted && formEl.shadowRoot.querySelector('h2')) { onSuccess(); return; }
+            if (needsDoctor()) doctor();
+          });
+          shadowObserver.observe(formEl.shadowRoot, { childList: true, subtree: true });
+        }
 
-        // mark that a submit was attempted (guards the popup heuristic)
+        // mark that a submit was attempted (guards the popup heuristic);
+        // re-hook each rebuilt <form> exactly once
         var form = formEl.shadowRoot.querySelector('form');
-        if (form) form.addEventListener('click', function (e) {
-          var b = e.target && e.target.closest && e.target.closest('button');
-          if (b) submitAttempted = true;
-        }, true);
+        if (form && !form.__pmHooked) {
+          form.__pmHooked = true;
+          form.addEventListener('click', function (e) {
+            var b = e.target && e.target.closest && e.target.closest('button');
+            if (b) submitAttempted = true;
+          }, true);
+        }
 
-        doctored = true;
         return true;
       } catch (err) {
         return false;
