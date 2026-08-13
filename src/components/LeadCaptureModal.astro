@@ -1,0 +1,529 @@
+---
+/**
+ * Lead-capture modal gating the Fieldd booking links.
+ *
+ * Wraps Fieldd's embeddable <fieldd-lead-form> custom element
+ * (script: https://fieldd.me/lead-form). Source-verified behavior of that
+ * component (see PR description for the full investigation):
+ *   - open shadow root (attachShadow({mode:"open"})) — internals reachable
+ *   - fields (name attrs): firstName, lastName, emailID, phone (intl-tel-input),
+ *     foundUsReason (select) — all required; values read via FormData, so
+ *     programmatic .value assignment is sufficient
+ *   - submits POST https://api.fieldd.co/lead-form/submit -> {success:true}
+ *   - success renders an in-shadow popup (hashed CSS-module classes, <h2> title);
+ *     no DOM event, no redirect
+ *
+ * Guarantees:
+ *   - The gate NEVER blocks a booking: if the script fails, internals are
+ *     unreachable, or doctoring times out, CTAs fall back to plain links.
+ *   - Visitors with localStorage pm_lead_captured=1 are never gated again.
+ *   - Modifier/middle clicks pass through untouched.
+ *
+ * This component also owns ALL booking-CTA tracking (moved here from
+ * BaseLayout so Lead can't double-fire). It follows the repo's established
+ * browser + Conversions API pattern (see functions/api/*.js and window.__pm
+ * in BaseLayout — per-event event_id for dedup, persistent external_id for
+ * person matching):
+ *   - pass-through click -> browser Lead (as before)
+ *   - gated click        -> Lead fires on successful form submit instead,
+ *                           browser Pixel + server mirror via /api/lead
+ *   - /service/-2 click  -> PaintInspectionClick, browser + server via
+ *                           /api/paint-inspection-click, in both paths
+ */
+import { FIELDD_BOOKING_URL } from '../consts';
+---
+
+<div
+  id="pm-lead-overlay"
+  class="fixed inset-0 z-[70] hidden items-end justify-center bg-ink/70 backdrop-blur-sm sm:items-center sm:p-4"
+>
+  <!-- focus-trap sentinel (start) -->
+  <span id="pm-lead-trap-start" tabindex="0" class="sr-only"></span>
+
+  <div
+    id="pm-lead-card"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pm-lead-headline"
+    class="relative w-full rounded-t-2xl border border-ink-600 bg-ink-800 p-6 pb-7 shadow-2xl shadow-black/50 sm:max-w-[420px] sm:rounded-lg"
+  >
+    <button
+      id="pm-lead-close"
+      type="button"
+      aria-label="Close and return to page"
+      class="absolute right-3 top-3 rounded-md p-2 text-slate-400 transition-colors hover:text-white"
+    >
+      <svg class="h-5 w-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M5 5l10 10M15 5L5 15" stroke-linecap="round" />
+      </svg>
+    </button>
+
+    <p class="eyebrow mb-2">Step 1 of 2</p>
+    <h2 id="pm-lead-headline" class="display text-2xl">Let's get you booked</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-400">
+      Takes ten seconds. If anything interrupts your booking, we'll have a way to reach you and hold your spot.
+    </p>
+
+    <!-- Fieldd form mounts here; shown while form is ready -->
+    <div id="pm-lead-form-slot" class="mt-5 min-h-[120px]">
+      <div id="pm-lead-loading" class="flex items-center justify-center py-8" aria-live="polite">
+        <svg class="h-6 w-6 animate-spin text-brand" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity="0.2" />
+          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+        </svg>
+        <span class="ml-3 text-sm text-slate-400">Loading…</span>
+      </div>
+    </div>
+
+    <p id="pm-lead-microcopy" class="mt-3 text-center text-xs text-slate-500">
+      No spam. We'll only contact you about your booking.
+    </p>
+
+    <!-- success state (hidden until submit succeeds) -->
+    <div id="pm-lead-success" class="hidden py-6 text-center" aria-live="polite">
+      <p class="font-display text-lg font-bold uppercase tracking-tight text-white">Taking you to booking…</p>
+      <p class="mt-2 text-sm text-slate-400">Hang tight — opening our live calendar.</p>
+    </div>
+
+    <!-- manual safety net: always available; primary styling after success -->
+    <div class="mt-4 text-center">
+      <a id="pm-lead-continue" href={FIELDD_BOOKING_URL} class="text-xs font-semibold text-slate-500 underline-offset-4 hover:text-slate-300 hover:underline">
+        Continue to booking →
+      </a>
+    </div>
+  </div>
+
+  <!-- optional low-contrast skip link (toggled by SHOW_SKIP_LINK) -->
+  <a
+    id="pm-lead-skip"
+    href={FIELDD_BOOKING_URL}
+    class="absolute bottom-3 hidden text-xs text-slate-600 hover:text-slate-400 sm:bottom-6"
+  >
+    or skip straight to booking
+  </a>
+
+  <!-- focus-trap sentinel (end) -->
+  <span id="pm-lead-trap-end" tabindex="0" class="sr-only"></span>
+</div>
+
+<script is:inline>
+  (function () {
+    'use strict';
+    // ---- config -----------------------------------------------------------
+    var SHOW_SKIP_LINK = false;
+    var FIELDD_CODE = 'ddYV7M';
+    var FIELDD_SCRIPT = 'https://fieldd.me/lead-form';
+    var LS_KEY = 'pm_lead_captured';
+    var DEFAULT_DEST = 'https://polishedmidwest.fieldd.co/';
+    var READY_TIMEOUT_MS = 6000; // script load + config fetch + first render
+    var REDIRECT_DELAY_MS = 800;
+
+    // ---- element refs -----------------------------------------------------
+    var overlay = document.getElementById('pm-lead-overlay');
+    if (!overlay) return;
+    var card = document.getElementById('pm-lead-card');
+    var slot = document.getElementById('pm-lead-form-slot');
+    var loadingEl = document.getElementById('pm-lead-loading');
+    var successEl = document.getElementById('pm-lead-success');
+    var microcopyEl = document.getElementById('pm-lead-microcopy');
+    var closeBtn = document.getElementById('pm-lead-close');
+    var continueLink = document.getElementById('pm-lead-continue');
+    var skipLink = document.getElementById('pm-lead-skip');
+    var trapStart = document.getElementById('pm-lead-trap-start');
+    var trapEnd = document.getElementById('pm-lead-trap-end');
+
+    // ---- state ------------------------------------------------------------
+    var scriptState = 'idle'; // idle | loading | loaded | failed
+    var broken = false; // set true when internals unreachable -> permanent pass-through
+    var formEl = null; // the <fieldd-lead-form> host
+    var isOpen = false;
+    var succeeded = false;
+    var trigger = null; // the clicked CTA, for focus return
+    var dest = DEFAULT_DEST;
+    var origFetch = null;
+    var shadowObserver = null;
+    var submitAttempted = false;
+
+    function captured() {
+      try { return localStorage.getItem(LS_KEY) === '1'; } catch (e) { return false; }
+    }
+    function setCaptured() {
+      try { localStorage.setItem(LS_KEY, '1'); } catch (e) { /* private mode */ }
+    }
+
+    // ---- tracking (established Pixel + Conversions API pattern) ----------
+    function newEventId() {
+      var pm = window.__pm || {};
+      return pm.uuid ? pm.uuid() : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
+    }
+    // Server-side mirror via the Pages Functions (functions/api/*). Same
+    // payload contract as the established /api/paint-inspection-click flow:
+    // shared event_id (dedup) + persistent external_id (person match).
+    function sendCapi(path, eventId) {
+      var pm = window.__pm || {};
+      var payload = JSON.stringify({
+        event_id: eventId,
+        external_id: pm.externalId || null,
+        event_source_url: location.href,
+        fbp: pm.readCookie ? pm.readCookie('_fbp') : null,
+        fbc: pm.readCookie ? pm.readCookie('_fbc') : null
+      });
+      var sent = false;
+      if (navigator.sendBeacon) {
+        try {
+          sent = navigator.sendBeacon(path, new Blob([payload], { type: 'application/json' }));
+        } catch (err) {}
+      }
+      if (!sent && (origFetch || window.fetch)) {
+        (origFetch || window.fetch)(path, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload,
+          keepalive: true
+        }).catch(function () {});
+      }
+    }
+    function firePaintInspectionClick(href) {
+      if (href.indexOf('/service/-2') === -1) return;
+      var eventId = newEventId();
+      if (typeof window.fbq === 'function') {
+        window.fbq('trackCustom', 'PaintInspectionClick', {}, { eventID: eventId });
+      }
+      sendCapi('/api/paint-inspection-click', eventId);
+    }
+    // pass-through clicks: browser Lead on click (pre-modal behavior) + PIC
+    function fireClickEvents(href) {
+      if (typeof window.fbq === 'function') window.fbq('track', 'Lead');
+      firePaintInspectionClick(href);
+    }
+
+    // ---- lazy script injection -------------------------------------------
+    function ensureScript() {
+      if (scriptState !== 'idle') return;
+      scriptState = 'loading';
+      var s = document.createElement('script');
+      s.src = FIELDD_SCRIPT;
+      s.async = true;
+      s.onload = function () { scriptState = 'loaded'; };
+      s.onerror = function () { scriptState = 'failed'; };
+      document.head.appendChild(s);
+    }
+    // prefetch on first hover/touch of any booking CTA (pointerenter doesn't
+    // bubble — pointerover does)
+    function prefetch(e) {
+      var a = e.target && e.target.closest && e.target.closest('a[href*="fieldd.co"]');
+      if (!a || captured()) return;
+      ensureScript();
+      document.removeEventListener('pointerover', prefetch, true);
+      document.removeEventListener('touchstart', prefetch, true);
+    }
+    document.addEventListener('pointerover', prefetch, true);
+    document.addEventListener('touchstart', prefetch, { capture: true, passive: true });
+
+    // ---- component doctoring ---------------------------------------------
+    function shadowInput(name) {
+      return formEl && formEl.shadowRoot ? formEl.shadowRoot.querySelector('[name="' + name + '"]') : null;
+    }
+    // the wrapper is the ancestor that is a direct child of the <form>
+    function rowOf(el) {
+      var form = el.closest('form');
+      var n = el;
+      while (n && n.parentElement && n.parentElement !== form) n = n.parentElement;
+      return n || el;
+    }
+    function setValue(el, value) {
+      el.value = value;
+      ['input', 'change'].forEach(function (type) {
+        el.dispatchEvent(new Event(type, { bubbles: true, composed: true }));
+      });
+    }
+
+    function waitForForm() {
+      return new Promise(function (resolve) {
+        var deadline = Date.now() + READY_TIMEOUT_MS;
+        (function poll() {
+          if (scriptState === 'failed') return resolve(false);
+          if (shadowInput('firstName')) return resolve(true);
+          if (Date.now() > deadline) return resolve(false);
+          setTimeout(poll, 120);
+        })();
+      });
+    }
+
+    // The Fieldd component re-renders its shadow content as config/fonts
+    // settle (and after submits), which can wipe both the injected stylesheet
+    // and the hidden/autofilled fields. doctor() is therefore idempotent and
+    // re-runs (via the shadow MutationObserver) whenever needsDoctor() spots
+    // an undoctored form — a one-shot flag loses that race.
+    var AUTOFILL_EMAIL = 'noemail@polishedmidwest.com';
+    function markerStyle() {
+      return formEl && formEl.shadowRoot
+        ? formEl.shadowRoot.querySelector('style[data-pm-lead]')
+        : null;
+    }
+    function needsDoctor() {
+      if (!shadowInput('firstName')) return false; // no form to doctor
+      if (!markerStyle()) return true; // full shadow re-render wiped our style
+      var last = shadowInput('lastName');
+      if (last && rowOf(last).style.display !== 'none') return true; // form rebuilt
+      var email = shadowInput('emailID');
+      if (email && email.value !== AUTOFILL_EMAIL) return true;
+      return false;
+    }
+    function doctor() {
+      try {
+        var first = shadowInput('firstName');
+        var phone = shadowInput('phone');
+        if (!first || !phone || !formEl.shadowRoot) return false;
+
+        // hide + autofill the fields we don't want to show
+        var last = shadowInput('lastName');
+        var email = shadowInput('emailID');
+        var found = formEl.shadowRoot.querySelector('select[name="foundUsReason"]');
+        var company = shadowInput('customerCompanyName');
+        if (last) { rowOf(last).style.display = 'none'; setValue(last, '-'); }
+        if (email) { rowOf(email).style.display = 'none'; setValue(email, AUTOFILL_EMAIL); }
+        if (company) { rowOf(company).style.display = 'none'; }
+        if (found) {
+          rowOf(found).style.display = 'none';
+          var opts = Array.prototype.slice.call(found.querySelectorAll('option'));
+          var pick = opts.filter(function (o) { return /website/i.test(o.textContent || ''); })[0]
+            || opts.filter(function (o) { return o.value && !o.disabled; })[0];
+          if (pick) setValue(found, pick.value);
+        }
+
+        // phone ergonomics (type is already tel per source; be explicit anyway)
+        phone.setAttribute('type', 'tel');
+        phone.setAttribute('inputmode', 'tel');
+        phone.setAttribute('autocomplete', 'tel');
+        first.setAttribute('autocomplete', 'given-name');
+
+        // relabel the submit button
+        var submit = formEl.shadowRoot.querySelector('button[type="submit"]')
+          || formEl.shadowRoot.querySelector('form button:last-of-type');
+        if (submit) submit.textContent = 'Continue to Booking';
+
+        // restyle internals to match the site (dark card, brand blue, radius)
+        var style = markerStyle() || document.createElement('style');
+        style.setAttribute('data-pm-lead', '');
+        style.textContent = [
+          ':host{font-family:inherit!important;color-scheme:dark;}',
+          'form{gap:12px!important;}',
+          'input,select{background:#171d28!important;border:1px solid #232b3a!important;',
+          '  color:#fff!important;border-radius:6px!important;font-family:inherit!important;}',
+          'input::placeholder{color:#64748b!important;}',
+          'input:focus,select:focus{border-color:#2882fd!important;outline:none!important;',
+          '  box-shadow:0 0 0 2px rgba(40,130,253,.25)!important;}',
+          // NOTE: submit styling deliberately targets [type=submit] only — a broad
+          // "form button:last-of-type" also matches intl-tel-input's country
+          // selector button (it's the only button in its container) and painted
+          // it brand-blue.
+          'button[type="submit"]{background:#2882fd!important;color:#fff!important;',
+          '  border:none!important;border-radius:6px!important;font-weight:700!important;',
+          '  text-transform:uppercase!important;letter-spacing:.03em!important;font-family:inherit!important;}',
+          'button[type="submit"]:hover{background:#1668dd!important;}',
+          '[data-error]::after{color:#f87171!important;}',
+          // Floating field labels ("First Name", "Phone"): dark pill so the
+          // floated state masks the input border without a light chip.
+          'form label{background:#10141c!important;color:#94a3b8!important;',
+          '  padding:0 6px!important;border-radius:4px!important;line-height:1.4!important;}',
+          // ---- intl-tel-input (stable .iti classes, v22) ----
+          '.iti{width:100%!important;}',
+          // country selector: same surface as the input, no blue block
+          '.iti button.iti__selected-country{background:transparent!important;color:#fff!important;',
+          '  border:none!important;border-radius:6px 0 0 6px!important;font-family:inherit!important;}',
+          '.iti button.iti__selected-country:hover,.iti button.iti__selected-country:focus{',
+          '  background:rgba(255,255,255,.06)!important;outline:none!important;}',
+          '.iti button.iti__selected-country:focus-visible{box-shadow:inset 0 0 0 2px rgba(40,130,253,.35)!important;}',
+          '.iti__selected-dial-code{color:#fff!important;}',
+          '.iti__arrow{border-top-color:#94a3b8!important;}',
+          '.iti__arrow--up{border-top-color:transparent!important;border-bottom-color:#94a3b8!important;}',
+          // country dropdown panel (desktop + fullscreen mobile popup)
+          '.iti__dropdown-content{background:#171d28!important;color:#e2e8f0!important;',
+          '  border:1px solid #232b3a!important;border-radius:6px!important;',
+          '  box-shadow:0 10px 30px rgba(0,0,0,.5)!important;}',
+          '.iti__country-list{background:transparent!important;}',
+          '.iti__country{color:#e2e8f0!important;}',
+          '.iti__country.iti__highlight,.iti__country:hover{background:#232b3a!important;}',
+          '.iti__dial-code{color:#94a3b8!important;}',
+          '.iti__divider{border-bottom-color:#232b3a!important;}',
+          '.iti__search-input{background:#10141c!important;color:#fff!important;',
+          '  border:1px solid #232b3a!important;border-radius:4px!important;}',
+          '.iti__search-input::placeholder{color:#64748b!important;}',
+          '.iti--container.iti--fullscreen-popup{background:rgba(10,13,18,.85)!important;}',
+        ].join('\n');
+        if (!style.parentNode) formEl.shadowRoot.appendChild(style);
+
+        // one persistent observer on the shadow ROOT (survives child wipes):
+        // #1 success detection — popup (<h2>) appears after a submit attempt
+        // #2 re-doctor whenever a re-render produced an undoctored form
+        if (!shadowObserver) {
+          shadowObserver = new MutationObserver(function () {
+            if (submitAttempted && formEl.shadowRoot.querySelector('h2')) { onSuccess(); return; }
+            if (needsDoctor()) doctor();
+          });
+          shadowObserver.observe(formEl.shadowRoot, { childList: true, subtree: true });
+        }
+
+        // mark that a submit was attempted (guards the popup heuristic);
+        // re-hook each rebuilt <form> exactly once
+        var form = formEl.shadowRoot.querySelector('form');
+        if (form && !form.__pmHooked) {
+          form.__pmHooked = true;
+          form.addEventListener('click', function (e) {
+            var b = e.target && e.target.closest && e.target.closest('button');
+            if (b) submitAttempted = true;
+          }, true);
+        }
+
+        return true;
+      } catch (err) {
+        return false;
+      }
+    }
+
+    // ---- success ----------------------------------------------------------
+    function onSuccess() {
+      if (succeeded) return;
+      succeeded = true;
+      setCaptured();
+
+      // Lead via the established dual pattern: browser Pixel + Conversions
+      // API mirror (/api/lead Pages Function), sharing one event_id so Meta
+      // dedups the pair; external_id rides on both for person matching.
+      var eventId = newEventId();
+      if (typeof window.fbq === 'function') {
+        window.fbq('track', 'Lead', {}, { eventID: eventId });
+      }
+      sendCapi('/api/lead', eventId);
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'generate_lead');
+      }
+
+      slot.classList.add('hidden');
+      microcopyEl.classList.add('hidden');
+      successEl.classList.remove('hidden');
+      continueLink.className = 'inline-block rounded-md bg-brand px-6 py-3 font-display text-sm font-bold uppercase tracking-wide text-white hover:bg-brand-dark';
+      continueLink.textContent = 'Continue to booking →';
+      setTimeout(function () { window.location.href = dest; }, REDIRECT_DELAY_MS);
+    }
+
+    // success detection #1: watch the submit call itself while modal is open
+    function wrapFetch() {
+      if (origFetch) return;
+      origFetch = window.fetch;
+      window.fetch = function () {
+        var args = arguments;
+        var url = '';
+        try { url = (args[0] && args[0].url) || String(args[0]); } catch (e) {}
+        var p = origFetch.apply(window, args);
+        if (url.indexOf('/lead-form/submit') !== -1) {
+          submitAttempted = true;
+          p.then(function (res) {
+            if (res && res.ok) {
+              res.clone().json().then(function (j) {
+                if (j && j.success) onSuccess();
+              }).catch(function () {});
+            }
+          }).catch(function () {});
+        }
+        return p;
+      };
+    }
+    function unwrapFetch() {
+      if (origFetch) { window.fetch = origFetch; origFetch = null; }
+    }
+
+    // ---- modal open/close -------------------------------------------------
+    function focusables() {
+      return [closeBtn, continueLink, formEl].filter(Boolean);
+    }
+    function open(a) {
+      trigger = a;
+      dest = a.href;
+      continueLink.href = dest;
+      if (skipLink) {
+        skipLink.href = dest;
+        skipLink.classList.toggle('hidden', !SHOW_SKIP_LINK);
+      }
+      isOpen = true;
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      document.documentElement.style.overflow = 'hidden';
+      wrapFetch();
+      document.addEventListener('keydown', onKeydown, true);
+
+      // mount the Fieldd element on first open
+      if (!formEl) {
+        formEl = document.createElement('fieldd-lead-form');
+        formEl.setAttribute('code', FIELDD_CODE);
+        slot.appendChild(formEl);
+      }
+      ensureScript();
+
+      waitForForm().then(function (ok) {
+        if (!isOpen) return;
+        if (!ok || !doctor()) {
+          // internals unreachable or script failed -> never block the booking
+          broken = true;
+          close(false);
+          fireClickEvents(dest);
+          window.location.href = dest;
+          return;
+        }
+        loadingEl.classList.add('hidden');
+        var first = shadowInput('firstName');
+        if (first) first.focus();
+      });
+    }
+    function close(returnFocus) {
+      isOpen = false;
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+      document.documentElement.style.overflow = '';
+      unwrapFetch();
+      document.removeEventListener('keydown', onKeydown, true);
+      if (returnFocus !== false && trigger && trigger.focus) trigger.focus();
+    }
+    function onKeydown(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(); }
+    }
+    closeBtn.addEventListener('click', function () { close(); });
+    overlay.addEventListener('click', function (e) {
+      if (e.target === overlay) close();
+    });
+    // focus trap via sentinels (works across the shadow boundary)
+    trapStart.addEventListener('focus', function () {
+      var f = focusables(); f[f.length - 1].focus();
+    });
+    trapEnd.addEventListener('focus', function () {
+      closeBtn.focus();
+    });
+    // manual continue = safety net; don't block it, just track the click
+    continueLink.addEventListener('click', function () {
+      fireClickEvents(continueLink.href);
+    });
+
+    // ---- CTA click interception ------------------------------------------
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest && e.target.closest('a[href*="fieldd.co"]');
+      if (!a) return;
+      if (a === continueLink || (skipLink && a === skipLink)) return; // modal's own links
+      // modifier/middle clicks and explicit new-tab links pass through
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1 || a.target === '_blank') {
+        fireClickEvents(a.href);
+        return;
+      }
+      // already captured, or gate known-broken -> plain link + click tracking
+      if (captured() || broken || scriptState === 'failed') {
+        fireClickEvents(a.href);
+        return;
+      }
+      // gate it: PaintInspectionClick keeps click semantics (browser + CAPI);
+      // Lead moves to successful form submit
+      e.preventDefault();
+      firePaintInspectionClick(a.href);
+      open(a);
+    }, true);
+  })();
+</script>

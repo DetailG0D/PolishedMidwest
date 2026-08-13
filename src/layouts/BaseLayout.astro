@@ -10,6 +10,7 @@ import '../styles/global.css';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import StickyCta from '../components/StickyCta.astro';
+import LeadCaptureModal from '../components/LeadCaptureModal.astro';
 import LocalBusinessSchema from '../components/LocalBusinessSchema.astro';
 import { SITE, FIELDD_BOOKING_URL } from '../consts';
 
@@ -150,65 +151,14 @@ const ogImageUrl = new URL(ogImage, SITE.url).href;
     <Footer minimal={minimal} />
     <StickyCta href={stickyCtaHref} label={stickyCtaLabel} />
 
-    <!-- Meta Pixel events on every Fieldd booking CTA, sitewide.
-         Plain delegated listener (capture phase) — no framework, works on all
-         static pages and fires synchronously on click, before navigation
-         starts; fbevents delivers via beacon so it survives the redirect.
-         - Any Fieldd link            -> standard "Lead" event
-         - Paint-inspection deep link -> also custom "PaintInspectionClick"
-           (the /service/-2 href identifies every "Book a Free Paint
-           Inspection" CTA, incl. the ceramic page's sticky bar), fired BOTH
-           browser-side (Pixel) and server-side (Conversions API via the
-           /api/paint-inspection-click Pages Function). Both share one
-           per-click event_id (dedup) and the visitor's persistent
-           external_id from window.__pm (person match) — the server mirror
-           fires even when the Pixel is blocked by an ad blocker. -->
-    <script is:inline>
-      document.addEventListener(
-        'click',
-        function (e) {
-          var t = e.target;
-          var a = t && t.closest && t.closest('a[href*="polishedmidwest.fieldd.co"]');
-          if (!a) return;
-          if (typeof window.fbq === 'function') window.fbq('track', 'Lead');
-          if (a.href.indexOf('/service/-2') === -1) return;
-
-          var pm = window.__pm || {};
-          var eventId = pm.uuid
-            ? pm.uuid()
-            : String(Date.now()) + '-' + Math.random().toString(16).slice(2);
-
-          if (typeof window.fbq === 'function') {
-            window.fbq('trackCustom', 'PaintInspectionClick', {}, { eventID: eventId });
-          }
-
-          var payload = JSON.stringify({
-            event_id: eventId,
-            external_id: pm.externalId || null,
-            event_source_url: location.href,
-            fbp: pm.readCookie ? pm.readCookie('_fbp') : null,
-            fbc: pm.readCookie ? pm.readCookie('_fbc') : null
-          });
-          var sent = false;
-          if (navigator.sendBeacon) {
-            try {
-              sent = navigator.sendBeacon(
-                '/api/paint-inspection-click',
-                new Blob([payload], { type: 'application/json' })
-              );
-            } catch (err) {}
-          }
-          if (!sent && window.fetch) {
-            fetch('/api/paint-inspection-click', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: payload,
-              keepalive: true
-            }).catch(function () {});
-          }
-        },
-        true
-      );
-    </script>
+    <!-- Lead-capture gate for all Fieldd booking CTAs. Also owns ALL booking
+         CTA tracking (the delegated click listener that previously lived
+         here moved into the component so Lead can't double-fire):
+         - pass-through clicks fire browser Lead on click, as before
+         - gated clicks fire Lead on successful form submit instead, browser
+           Pixel + Conversions API mirror (/api/lead) with shared event_id
+         - /service/-2 clicks fire PaintInspectionClick browser + CAPI
+           (/api/paint-inspection-click) in both paths, unchanged -->
+    <LeadCaptureModal />
   </body>
 </html>
