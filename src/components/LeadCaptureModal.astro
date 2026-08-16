@@ -353,8 +353,16 @@ import { FIELDD_BOOKING_URL } from '../consts';
         // phone ergonomics (type is already tel per source; be explicit anyway)
         phone.setAttribute('type', 'tel');
         phone.setAttribute('inputmode', 'tel');
-        phone.setAttribute('autocomplete', 'tel');
-        first.setAttribute('autocomplete', 'given-name');
+        // ⚠️ Do NOT set autocomplete="tel" / "given-name" here. Fieldd ships
+        // <form autocomplete="off">; a specific input-level token overrides
+        // that in Chromium/Safari and re-enables saved-contact-profile
+        // autofill on the two visible fields. That let a device's saved
+        // "Test"/test-phone profile silently overwrite what visitors typed,
+        // and FormData submitted the autofilled values (see PR #3). Keep the
+        // fields on the form's autocomplete=off, and belt-and-braces mark
+        // them off explicitly in case Fieldd ever drops the form attribute.
+        phone.setAttribute('autocomplete', 'off');
+        first.setAttribute('autocomplete', 'off');
 
         // relabel the submit button
         var submit = formEl.shadowRoot.querySelector('button[type="submit"]')
