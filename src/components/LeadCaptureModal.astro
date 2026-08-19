@@ -142,9 +142,13 @@ import { FIELDD_BOOKING_URL } from '../consts';
     // this public repo. To add yours:
     //   echo -n '+1XXXXXXXXXX' | shasum -a 256
     // then paste the 64-char lowercase hex string into this array.
-    var BLOCKED_PHONE_HASHES = [];
+    var BLOCKED_PHONE_HASHES = [
+      '22302d89624c302d288e8cd725f79de1868d5eb64eb6916df16e37f867b3ab1a',
+      'ff8369bc44175d1e74cd522412227d89cfabc5acc5e83c27db7b404a932a8cd2',
+    ];
     // Test hook: the E2E suite injects a runtime-computed hash of a dummy
-    // number here (page.addInitScript) so no real hash ever lives in the repo.
+    // number here (page.addInitScript) so the tests never depend on the
+    // real entries above.
     if (Array.isArray(window.__pmBlockedPhoneHashes)) {
       BLOCKED_PHONE_HASHES = BLOCKED_PHONE_HASHES.concat(window.__pmBlockedPhoneHashes);
     }
