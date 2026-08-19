@@ -129,7 +129,17 @@ import { FIELDD_BOOKING_URL } from '../consts';
     var DEFAULT_DEST = 'https://polishedmidwest.fieldd.co/';
     var READY_TIMEOUT_MS = 6000; // script load + config fetch + first render
     var REDIRECT_DELAY_MS = 800;
-    var AUTOFILL_EMAIL = 'noemail@polishedmidwest.com';
+    // ⚠️ Fieldd MERGES lead submissions that share a field value with an
+    // existing lead (confirmed by live testing). A static placeholder email
+    // made every visitor's submission merge into the first lead, losing
+    // their real name/phone. The placeholder email must therefore be unique
+    // per submission: noemail+<epoch-ms><4 random chars>@polishedmidwest.com
+    // — still obviously fake, never colliding.
+    var AUTOFILL_EMAIL_RE = /^noemail\+\d+[a-z0-9]{4}@polishedmidwest\.com$/;
+    function freshAutofillEmail() {
+      var rand = (Math.random().toString(36).slice(2) + '0000').slice(0, 4);
+      return 'noemail+' + Date.now() + rand + '@polishedmidwest.com';
+    }
 
     // ---- submit-time junk guard -------------------------------------------
     // Belt-and-braces against saved-profile autofill / test data reaching
@@ -349,7 +359,10 @@ import { FIELDD_BOOKING_URL } from '../consts';
       var last = shadowInput('lastName');
       if (last && rowOf(last).style.display !== 'none') return true; // form rebuilt
       var email = shadowInput('emailID');
-      if (email && email.value !== AUTOFILL_EMAIL) return true;
+      // pattern match, not equality — the placeholder is unique per
+      // submission, so any value NOT matching the pattern means the form was
+      // rebuilt and needs re-doctoring (and a fresh unique email)
+      if (email && !AUTOFILL_EMAIL_RE.test(email.value)) return true;
       return false;
     }
     // ---- junk guard helpers ----------------------------------------------
@@ -423,7 +436,13 @@ import { FIELDD_BOOKING_URL } from '../consts';
         var found = formEl.shadowRoot.querySelector('select[name="foundUsReason"]');
         var company = shadowInput('customerCompanyName');
         if (last) { rowOf(last).style.display = 'none'; setValue(last, '-'); }
-        if (email) { rowOf(email).style.display = 'none'; setValue(email, AUTOFILL_EMAIL); }
+        if (email) {
+          rowOf(email).style.display = 'none';
+          // only (re)fill when the field does not already hold a valid unique
+          // placeholder: a rebuilt form gets a FRESH value, an intact form
+          // keeps its current one (no loop with the needsDoctor observer)
+          if (!AUTOFILL_EMAIL_RE.test(email.value)) setValue(email, freshAutofillEmail());
+        }
         if (company) { rowOf(company).style.display = 'none'; }
         if (found) {
           rowOf(found).style.display = 'none';
@@ -636,6 +655,11 @@ import { FIELDD_BOOKING_URL } from '../consts';
         wrap.appendChild(formEl);
       }
       ensureScript();
+
+      // fresh unique placeholder email for THIS open — a previous visitor's
+      // submission on the same page load must never share an email value
+      var emailField = shadowInput('emailID');
+      if (emailField) setValue(emailField, freshAutofillEmail());
 
       if (revealed) {
         // already doctored on a previous open — show instantly

@@ -19,7 +19,10 @@ import { createHash } from 'node:crypto';
  */
 
 const SUBMIT_URL = '**/lead-form/submit';
-const PLACEHOLDERS = { lastName: '-', emailID: 'noemail@polishedmidwest.com', foundUsReason: 'Our Website' };
+const PLACEHOLDERS = { lastName: '-', foundUsReason: 'Our Website' };
+// placeholder email is unique per submission (Fieldd merges leads sharing a
+// field value): noemail+<epoch-ms><4 chars>@polishedmidwest.com
+const EMAIL_RE = /^noemail\+\d+[a-z0-9]{4}@polishedmidwest\.com$/;
 
 /** Open the modal from the header CTA and wait until the doctored form is revealed. */
 async function openModal(page) {
@@ -60,7 +63,7 @@ test.describe('lead-capture modal submit payload', () => {
     await expect(shadowInput(page, 'lastName')).toBeHidden();
     await expect(shadowInput(page, 'emailID')).toBeHidden();
     await expect(shadowInput(page, 'lastName')).toHaveValue(PLACEHOLDERS.lastName);
-    await expect(shadowInput(page, 'emailID')).toHaveValue(PLACEHOLDERS.emailID);
+    await expect(shadowInput(page, 'emailID')).toHaveValue(EMAIL_RE);
     // the two visible fields must NOT invite saved-profile autofill.
     // "off" is ignored by Chrome for contact autofill when a saved profile
     // exists; "one-time-code" is honored and suppresses it (PR #4).
@@ -79,7 +82,7 @@ test.describe('lead-capture modal submit payload', () => {
     expect(body.firstName).toBe('Zephyrine');
     expect(body.phone).toBe('+16185550142'); // intl-tel-input E.164
     expect(body.lastName).toBe(PLACEHOLDERS.lastName);
-    expect(body.emailID).toBe(PLACEHOLDERS.emailID);
+    expect(body.emailID).toMatch(EMAIL_RE);
     expect(body.foundUsReason).toBe(PLACEHOLDERS.foundUsReason);
   });
 
@@ -206,5 +209,23 @@ test.describe('lead-capture modal submit payload', () => {
     const body = await captured;
     expect(body.phone).toBe('+16185550142');
     await context.close();
+  });
+
+  test('UNIQUE EMAIL: two submissions in fresh contexts carry two DIFFERENT placeholder emails', async ({ browser }) => {
+    const emails = [];
+    for (const who of [{ name: 'Anouk', phone: '6185550301' }, { name: 'Baptiste', phone: '6185550302' }]) {
+      const context = await browser.newContext(); // fresh storage + memory
+      const page = await context.newPage();
+      await openModal(page);
+      const captured = captureSubmit(page);
+      await shadowInput(page, 'firstName').fill(who.name);
+      await shadowInput(page, 'phone').fill(who.phone);
+      await submitBtn(page).click();
+      const body = await captured;
+      expect(body.emailID).toMatch(EMAIL_RE);
+      emails.push(body.emailID);
+      await context.close();
+    }
+    expect(emails[0], 'placeholder emails must never collide across submissions').not.toBe(emails[1]);
   });
 });
