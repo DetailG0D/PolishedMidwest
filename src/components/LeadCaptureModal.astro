@@ -131,6 +131,26 @@ import { FIELDD_BOOKING_URL } from '../consts';
     var REDIRECT_DELAY_MS = 800;
     var AUTOFILL_EMAIL = 'noemail@polishedmidwest.com';
 
+    // ---- submit-time junk guard -------------------------------------------
+    // Belt-and-braces against saved-profile autofill / test data reaching
+    // Fieldd. Runs BEFORE Fieldd's own submit handler (capture phase on the
+    // submit button + stopImmediatePropagation) so a blocked submit never
+    // POSTs anything.
+    var JUNK_FIRST_NAME_RE = /^\s*test\s*$/i;
+    // SHA-256 hex digests of E.164 phone numbers to reject (e.g. the number
+    // used during early testing). Hashes only — never put a real number in
+    // this public repo. To add yours:
+    //   echo -n '+1XXXXXXXXXX' | shasum -a 256
+    // then paste the 64-char lowercase hex string into this array.
+    var BLOCKED_PHONE_HASHES = [];
+    // Test hook: the E2E suite injects a runtime-computed hash of a dummy
+    // number here (page.addInitScript) so no real hash ever lives in the repo.
+    if (Array.isArray(window.__pmBlockedPhoneHashes)) {
+      BLOCKED_PHONE_HASHES = BLOCKED_PHONE_HASHES.concat(window.__pmBlockedPhoneHashes);
+    }
+    var JUNK_NAME_MSG = 'Please enter your real first name';
+    var JUNK_PHONE_MSG = 'Please enter a valid phone number for your booking';
+
     // ---- element refs -----------------------------------------------------
     var overlay = document.getElementById('pm-lead-overlay');
     if (!overlay) return;
@@ -328,6 +348,65 @@ import { FIELDD_BOOKING_URL } from '../consts';
       if (email && email.value !== AUTOFILL_EMAIL) return true;
       return false;
     }
+    // ---- junk guard helpers ----------------------------------------------
+    // Fieldd normalizes the phone to E.164 via intl-tel-input getNumber();
+    // we hash the same normalized form, read off the iti instance attached
+    // to the phone input (falls back to digits-only normalization).
+    function enteredPhoneE164() {
+      var phone = shadowInput('phone');
+      if (!phone) return '';
+      try {
+        var iti = window.intlTelInput && window.intlTelInput.getInstance
+          ? window.intlTelInput.getInstance(phone) : null;
+        if (iti && iti.getNumber) { var n = iti.getNumber(); if (n) return n; }
+      } catch (e) {}
+      var d = String(phone.value || '').replace(/\D/g, '');
+      if (d.length === 10) return '+1' + d;
+      if (d.length === 11 && d.charAt(0) === '1') return '+' + d;
+      return d ? '+' + d : '';
+    }
+    // SHA-256 is async; precompute on input/change so the click handler can
+    // decide synchronously (it must beat Fieldd's own submit handler).
+    var phoneHashCache = { input: '', hex: '' };
+    function refreshPhoneHash() {
+      if (!BLOCKED_PHONE_HASHES.length || !window.crypto || !window.crypto.subtle) return;
+      var e164 = enteredPhoneE164();
+      if (!e164 || e164 === phoneHashCache.input) return;
+      var snapshot = e164;
+      window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(snapshot)).then(function (buf) {
+        var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) {
+          return ('0' + b.toString(16)).slice(-2);
+        }).join('');
+        phoneHashCache = { input: snapshot, hex: hex };
+      }).catch(function () {});
+    }
+    // returns an error message if the current values are junk, else ''
+    function junkReason() {
+      var first = shadowInput('firstName');
+      if (first && JUNK_FIRST_NAME_RE.test(first.value || '')) return JUNK_NAME_MSG;
+      if (BLOCKED_PHONE_HASHES.length) {
+        var e164 = enteredPhoneE164();
+        if (e164 && phoneHashCache.input === e164 &&
+            BLOCKED_PHONE_HASHES.indexOf(phoneHashCache.hex) !== -1) return JUNK_PHONE_MSG;
+      }
+      return '';
+    }
+    // Inline themed error under the form — our own light-DOM element, so it
+    // doesn't depend on Fieldd's hashed error classes.
+    function errorEl() {
+      var el = document.getElementById('pm-lead-error');
+      if (!el) {
+        el = document.createElement('p');
+        el.id = 'pm-lead-error';
+        el.setAttribute('role', 'alert');
+        el.className = 'mt-2 text-sm font-medium text-red-400';
+        slot.appendChild(el);
+      }
+      return el;
+    }
+    function showFieldError(msg) { var el = errorEl(); el.textContent = msg; el.hidden = false; }
+    function clearFieldError() { var el = document.getElementById('pm-lead-error'); if (el) el.hidden = true; }
+
     function doctor() {
       try {
         var first = shadowInput('firstName');
@@ -353,32 +432,53 @@ import { FIELDD_BOOKING_URL } from '../consts';
         // phone ergonomics (type is already tel per source; be explicit anyway)
         phone.setAttribute('type', 'tel');
         phone.setAttribute('inputmode', 'tel');
-        // ⚠️ Do NOT set autocomplete="tel" / "given-name" here. Fieldd ships
-        // <form autocomplete="off">; a specific input-level token overrides
-        // that in Chromium/Safari and re-enables saved-contact-profile
-        // autofill on the two visible fields. That let a device's saved
-        // "Test"/test-phone profile silently overwrite what visitors typed,
-        // and FormData submitted the autofilled values (see PR #3). Keep the
-        // fields on the form's autocomplete=off, and belt-and-braces mark
-        // them off explicitly in case Fieldd ever drops the form attribute.
-        phone.setAttribute('autocomplete', 'off');
-        first.setAttribute('autocomplete', 'off');
+        // ⚠️ Autofill hardening (PRs #3, #4). Never set "tel"/"given-name"
+        // here — those tokens override Fieldd's <form autocomplete="off">
+        // and re-enable saved-contact-profile autofill, which let a device's
+        // saved "Test"/test-phone profile overwrite what visitors typed.
+        // "off" is not enough either: Chrome ignores it for contact autofill
+        // when a saved profile exists. "one-time-code" IS honored by Chrome
+        // and suppresses contact-profile autofill on these fields.
+        phone.setAttribute('autocomplete', 'one-time-code');
+        first.setAttribute('autocomplete', 'one-time-code');
 
         // relabel the submit button
         var submit = formEl.shadowRoot.querySelector('button[type="submit"]')
           || formEl.shadowRoot.querySelector('form button:last-of-type');
         if (submit) submit.textContent = 'Continue to Booking';
 
+        // keep the blocked-phone hash current + clear the inline error on edit
+        if (!phone.__pmHooked) {
+          phone.__pmHooked = true;
+          ['input', 'change', 'blur'].forEach(function (t) {
+            phone.addEventListener(t, function () { refreshPhoneHash(); clearFieldError(); });
+          });
+        }
+        if (!first.__pmHooked) {
+          first.__pmHooked = true;
+          first.addEventListener('input', clearFieldError);
+        }
+
         injectStyle();
 
-        // mark that a submit was attempted (guards the popup heuristic);
-        // re-hook each rebuilt <form> exactly once
-        var form = formEl.shadowRoot.querySelector('form');
-        if (form && !form.__pmHooked) {
-          form.__pmHooked = true;
-          form.addEventListener('click', function (e) {
-            var b = e.target && e.target.closest && e.target.closest('button');
-            if (b) submitAttempted = true;
+        // Hook the SUBMIT button only (not any button — intl-tel-input's
+        // country selector is also a <button> inside the form and used to
+        // trip submitAttempted, which could misfire the success heuristic).
+        // Capture-phase listener on the button itself runs before Fieldd's
+        // own handler, so the junk guard can stop a bad submit outright.
+        // Re-hook each rebuilt button exactly once.
+        if (submit && !submit.__pmHooked) {
+          submit.__pmHooked = true;
+          submit.addEventListener('click', function (e) {
+            var reason = junkReason();
+            if (reason) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              showFieldError(reason);
+              return;
+            }
+            clearFieldError();
+            submitAttempted = true;
           }, true);
         }
 
