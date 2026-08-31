@@ -55,36 +55,50 @@ const threats = [
 ];
 
 /**
- * The two ceramic packages. Highlights only — the full itemized menu lives in
- * Fieldd. Confirm starting prices before launch (see CONTENT.md).
+ * The three ceramic packages (Fieldd "Long Term Paint Protection" lineup).
+ * Highlights only — the full itemized menu lives in Fieldd.
  */
 const packages = [
   {
-    name: 'Clay & Coat',
-    price: 'Starting at $447',
-    term: '1-Year+ Ceramic Protection',
+    name: '2 Year Protection',
+    price: 'Starting at $849',
+    term: '2-Year Ceramic Warranty',
     featured: false,
-    desc: 'Full decontamination plus a year-plus of ceramic protection — the easiest way to get into real paint protection.',
+    desc: 'Full decontamination plus two years of ceramic protection — the easiest way to get into long-term paint protection.',
     includes: [
       'Professional hand wash & clay bar decontamination',
-      '1-year+ paint ceramic coating (1-year warranty)',
+      '2-year ceramic coating (2-year warranty)',
       'Wheels, tires & wheel wells detailed',
       'Door jambs, gas cap & door coated',
       'Windows, mirrors & engine bay detailed',
     ],
   },
   {
-    name: '3 Year Protection',
-    price: 'Starting at $947',
-    term: '3-Year Ceramic Warranty',
+    name: '5 Year Shield',
+    price: 'Starting at $1,199',
+    term: '5-Year Ceramic Warranty',
     featured: true,
     desc: 'Ultra high gloss coating & single stage paint enhancement — swirls and light scratches polished out before the coating locks in the finish.',
     includes: [
       'Full exterior detail + clay decontamination',
       '1-step paint enhancement (removes minor swirls & scratches)',
       'Hard water spot removal — entire vehicle',
-      '1 layer of 3-year ceramic coating on all body panels',
-      'Engine bay detail · 3-year ceramic warranty',
+      '5-year ceramic coating on all body panels',
+      'Engine bay detail · 5-year ceramic warranty',
+    ],
+  },
+  {
+    name: '10 Year Armor',
+    price: 'Starting at $1,899',
+    term: '10-Year Ceramic Warranty',
+    featured: false,
+    desc: 'Our longest-lasting protection — the same single stage paint enhancement, sealed under our most durable ceramic coating.',
+    includes: [
+      'Full exterior detail + clay decontamination',
+      '1-step paint enhancement (removes minor swirls & scratches)',
+      'Hard water spot removal — entire vehicle',
+      '10-year ceramic coating on all body panels',
+      'Engine bay detail · 10-year ceramic warranty',
     ],
   },
 ];
@@ -96,7 +110,7 @@ const faqs = [
   },
   {
     q: 'How long does a ceramic coating last?',
-    a: 'Depends on the package: our Clay & Coat package carries a 1-year+ coating with a 1-year warranty, and our 3 Year Protection package carries a 3-year ceramic warranty. At your free paint inspection we’ll recommend the right level for how you actually use the car.',
+    a: 'Depends on the package: 2 Year Protection carries a 2-year ceramic warranty, 5 Year Shield a 5-year, and 10 Year Armor a 10-year. At your free paint inspection we’ll recommend the right level for how you actually use the car.',
   },
   {
     q: 'Why do I need a paint inspection first?',
@@ -225,7 +239,7 @@ const faqSchema = {
             />
           </div>
           <figcaption class="mt-3 text-sm text-slate-400">
-            Hard water spot removal — included in the 3 Year Protection package.
+            Hard water spot removal — included in the 5 Year Shield and 10 Year Armor packages.
           </figcaption>
         </figure>
         <figure>
@@ -268,11 +282,11 @@ const faqSchema = {
   <!-- ============ PACKAGES ============ -->
   <section class="py-20 sm:py-28">
     <div class="container-site">
-      <SectionHeading eyebrow="Packages" title="Two packages. One free inspection." align="center">
+      <SectionHeading eyebrow="Packages" title="Three packages. One free inspection." align="center">
         Both start with proper decontamination — a coating is only as good as the surface under it.
         Final pricing depends on your vehicle's size and condition, confirmed at your free inspection.
       </SectionHeading>
-      <div class="mx-auto mt-12 grid max-w-4xl gap-6 md:grid-cols-2">
+      <div class="mt-12 grid gap-6 lg:grid-cols-3">
         {
           packages.map((p) => (
             <div
@@ -309,8 +323,8 @@ const faqSchema = {
       <div class="mx-auto mt-6 grid max-w-4xl gap-3 sm:grid-cols-2">
         {
           [
-            { name: 'Glass Coating', price: '$149' },
-            { name: 'Wheel Coating', price: '$129' },
+            { name: 'Full Glass Ceramic Coat', price: '$109' },
+            { name: 'Wheel Ceramic Coating', price: '$125' },
           ].map((a) => (
             <div class="flex items-center justify-between rounded-md border border-ink-600 bg-ink px-5 py-3.5">
               <span class="text-sm text-slate-300">
